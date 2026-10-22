@@ -303,7 +303,7 @@ def self_test():
             ("KRW", 0.026), ("CNY", 4.95)]}
     }
     # Unit parser test avoids wall-clock validation of an old fixture.
-    assert re.search(r"\\d{4}/\\d{2}/\\d{2}", mirror_fixture["updateTime"])
+    assert "2026/10/22" in mirror_fixture["updateTime"]
     grand_mirror_fixture = """<div>Grand Super Rich 2m ago Updated</div>
        <table><tr><td>USD US Dollar</td><td>100</td><td>33.57</td><td>33.64</td></tr>
        <tr><td>EUR Euro</td><td>500-100</td><td>37.65</td><td>37.80</td></tr>
