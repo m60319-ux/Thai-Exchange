@@ -1,0 +1,48 @@
+name: Refresh BOT and Grand SuperRich cash rates
+
+on:
+  workflow_dispatch:
+  schedule:
+    # GitHub schedules are UTC and can be delayed.
+    # 08:17-20:17 Thailand / 09:17-21:17 Taiwan, every day.
+    - cron: "17 1-13 * * *"
+  push:
+    paths:
+      - ".github/workflows/update-rates.yml"
+      - "scripts/update_rates.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: official-cash-rates
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install crawler dependencies
+        run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.14.2
+      - name: Test quote parsing using offline fixtures
+        run: python scripts/update_rates.py --self-test
+      - name: Fetch and validate both official sources
+        run: python scripts/update_rates.py
+      - name: Publish valid rate snapshot only when changed
+        run: |
+          if [[ -n "$(git status --porcelain -- rates.json)" ]]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add rates.json
+            git commit -m "Update verified BOT and Grand SuperRich cash quotations"
+            git push
+          else
+            echo "No new official quotations, nothing to commit."
+          fi
