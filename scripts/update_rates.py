@@ -73,7 +73,7 @@ def bot_cash_sell(csv_text):
         # starts at index 11, and CASH SELL is index 12.
         rates[code] = check_range(code, float(row[12].strip()))
     if set(rates) != set(CURRENCIES):
-        raise ValueError(f"BOT cash sell incomplete: {sorted(rates)}")
+        raise ValueError(f"BOT cash sell incomplete: {sorted(rates)}; response_prefix={csv_text[:260]!r}")
     return rates
 
 
