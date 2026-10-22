@@ -33,8 +33,8 @@
  <div class="trend-footer"><span class="sub" id="trendSource">歷史資料來源：<a href="https://frankfurter.dev/" target="_blank" rel="noopener noreferrer">Frankfurter 市場參考匯率</a>（非 SuperRich 現鈔歷史牌告）。圖表需網路連線，資料通常按交易日更新；休市日可能沒有新點。</span><button id="downloadHistory" class="secondary" type="button" disabled>下載歷史 CSV ↓</button></div>
  <div class="footer-note" style="margin-bottom:0"><b>提醒：</b>趨勢圖是跨幣別市場中間參考匯率，<b>不含台銀與 SuperRich 現鈔買賣價差</b>。上方的最佳換匯路線依您填寫的兩家牌告計算，不能用歷史曲線替代現金換匯收益。</div>
 </section>
-<section class="card table-card"><div class="section-head"><div><h2>匯率資料與設定</h2><div class="sub">官方牌告僅作為初始參考，手動輸入最新數值後立即重算</div></div><button class="secondary" type="button" id="reset">還原初始匯率</button></div><div class="tools" style="margin-bottom:15px"><span class="status" id="rateTableStatus"><span class="dot"></span>備援初始值：2026/10/19；連線成功時自動取代</span><div class="actions"><a href="https://rate.bot.com.tw/xrt/" target="_blank" rel="noopener noreferrer">開啟台銀牌告 ↗</a><a href="https://www.grandsuperrich.com/" target="_blank" rel="noopener noreferrer">開啟 SuperRich ↗</a></div></div><div class="tbl-scroll"><table class="rate-table"><thead><tr><th>幣別</th><th>台銀現鈔賣出<br><span class="mini">台幣 / 1 單位外幣</span></th><th>Grand SuperRich 買入<br><span class="mini">泰銖 / 1 單位外幣</span></th><th>有效換算率<br><span class="mini">泰銖 / 1 台幣</span></th></tr></thead><tbody id="rateBody"></tbody></table></div><div id="feedback" role="status" aria-live="polite"></div><div class="top-gap tools"><div class="caption">所有欄位可修改，數值會儲存在這台裝置的瀏覽器中。</div><button class="primary" id="exportCsv" type="button">匯出 CSV 比較表 ↓</button></div><ul class="note-list"><li><b>台銀「現鈔賣出」</b>：你用台幣向銀行買外幣現金；不是即期匯率。</li><li><b>SuperRich「買入」</b>：你把外幣現金交給換匯店，換匯店買入外幣並給你泰銖。</li><li>美元以 100 美元紙鈔、歐元以 100 歐元以上、日圓以 5,000–10,000 日圓、人民幣以 50–100 元、韓元以一般大面額紙鈔牌告為基準；實際不同面額可能有價差。</li><li>本工具採比例換算，未模擬整張紙鈔、找零與門市庫存；實際可換金額應以臨櫃確認為準。</li><li>網頁<b>不會自動從官方網站擷取即時匯率</b>。瀏覽器跨網域限制可能使直接讀取失敗，因此不會顯示「假即時」報價。</li></ul></section>
-<div class="footer">匯率比較工具 · 不是換匯交易平台。開啟頁面時自動嘗試讀取 GitHub Actions 最近一次成功驗證的官方現鈔牌告；資料非即時成交價。讀取失敗時保留歷史備援值（2026/10/19），請注意上方警示。</div>
+<section class="card table-card"><div class="section-head"><div><h2>匯率資料與設定</h2><div class="sub">開啟網頁時讀取 GitHub Actions 最新成功發布的現鈔牌告，也可手動修改後重算</div></div><button class="secondary" type="button" id="reset">還原初始匯率</button></div><div class="tools" style="margin-bottom:15px"><span class="status" id="rateTableStatus"><span class="dot"></span>備援初始值：2026/10/19；連線成功時自動取代</span><div class="actions"><a href="https://rate.bot.com.tw/xrt/" target="_blank" rel="noopener noreferrer">開啟台銀牌告 ↗</a><a href="https://www.grandsuperrich.com/" target="_blank" rel="noopener noreferrer">開啟 SuperRich ↗</a></div></div><div class="tbl-scroll"><table class="rate-table"><thead><tr><th>幣別</th><th>台銀現鈔賣出<br><span class="mini">台幣 / 1 單位外幣</span></th><th>Grand SuperRich 買入<br><span class="mini">泰銖 / 1 單位外幣</span></th><th>有效換算率<br><span class="mini">泰銖 / 1 台幣</span></th></tr></thead><tbody id="rateBody"></tbody></table></div><div id="feedback" role="status" aria-live="polite"></div><div class="top-gap tools"><div class="caption">所有欄位可修改，數值會儲存在這台裝置的瀏覽器中。</div><button class="primary" id="exportCsv" type="button">匯出 CSV 比較表 ↓</button></div><ul class="note-list"><li><b>台銀「現鈔賣出」</b>：你用台幣向銀行買外幣現金；不是即期匯率。</li><li><b>SuperRich「買入」</b>：你把外幣現金交給換匯店，換匯店買入外幣並給你泰銖。</li><li>美元以 100 美元紙鈔、歐元以 100 歐元以上、日圓以 5,000–10,000 日圓、人民幣以 50–100 元、韓元以一般大面額紙鈔牌告為基準；實際不同面額可能有價差。</li><li>本工具採比例換算，未模擬整張紙鈔、找零與門市庫存；實際可換金額應以臨櫃確認為準。</li><li>GitHub Actions 會定時抓取台銀與 Grand SuperRich 的現鈔牌告；若官方網站限制自動讀取，可使用具時間驗證的公開轉載鏡像，並於頁面明確註明來源。請勿將轉載資料視為官方即時成交價。</li></ul></section>
+<div class="footer">匯率比較工具 · 不是換匯交易平台。開啟頁面時自動嘗試讀取 GitHub Actions 最近一次通過數值與時效檢查的現鈔牌告（可能來自標明的第三方公開鏡像）；不是官方即時成交價。讀取失敗時保留歷史備援值（2026/10/19），請注意上方警示。</div>
 </main>
 <script>
 (()=>{'use strict';
@@ -94,9 +94,10 @@ async function loadVerifiedQuotes(){
     const grandStamp=quoteTime(grand.quoted_at,'Asia/Bangkok');
     const dates='台銀 '+botStamp+'（台灣）｜Grand SuperRich '+grandStamp+'（泰國）';
     const stale=age>30;
-    $('#snapshotLabel').textContent=stale?'官方牌告已同步 · 報價非今日':'官方牌告已同步 · 最近報價';
-    $('#rateTableStatus').innerHTML='<span class="dot"></span>來源時間：'+dates;
-    updateNotice((stale?'注意：最近可得官方報價並非今日。':'已自動載入經驗證的官方現鈔牌告。')+' '+dates+'。若官方暫停更新，會沿用已驗證數值；實際交易仍以臨櫃為準。',stale?'warn':'');
+    $('#snapshotLabel').textContent=stale?'現鈔牌告已同步 · 非今日':'現鈔牌告已同步 · 近期資料';
+    $('#rateTableStatus').innerHTML='<span class="dot"></span>來源報價時間：'+dates;
+    const sourceKind=(bot.retrieval==='independent_mirror'?'台銀：HaoRate 鏡像轉載':'台銀：官方直讀')+'；'+(grand.retrieval==='independent_mirror'?'Grand SuperRich：RuamThai 鏡像轉載（時間約數）':'Grand SuperRich：官方直讀');
+    updateNotice((stale?'注意：最近可得報價非今日。':'已自動載入通過數值與時效檢查的現鈔牌告。')+' '+dates+'。來源：'+sourceKind+'。每小時檢查非即時成交價，實際以官方或臨櫃牌告為準。',stale?'warn':'');
   }catch(e){
     $('#snapshotLabel').textContent='尚未同步 · 使用歷史備援匯率';
     $('#rateTableStatus').innerHTML='<span class="dot"></span>歷史備援資料／本機儲存值（不保證最新）';
