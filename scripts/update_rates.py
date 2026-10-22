@@ -147,27 +147,121 @@ def verify_fresh(date_value, source, max_age_hours=120):
         )
 
 
-def collect():
-    bot_csv = request_text(BOT_CSV_URL)
-    bot_html = request_text(BOT_URL)
-    grand_html = request_text(GRAND_URL)
+# Mirrors below are explicitly labeled. The rate values are official posted
+# cash quotations as reproduced by the aggregator, NOT bank/market mid-rates.
+BOT_MIRROR_URL = "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json"
+GRAND_MIRROR_URL = "https://exchange.ruamthai.com/en/shop/grand-superrich"
 
-    bot_rates = bot_cash_sell(bot_csv)
-    bot_date = bot_quote_timestamp(bot_html)
-    grand_rates, grand_date, denominations = grand_cash_buy(grand_html)
-    verify_fresh(bot_date, "BOT", max_age_hours=120)
-    verify_fresh(grand_date, "Grand SuperRich", max_age_hours=120)
+
+def bot_mirror_rates(raw_json):
+    data = json.loads(raw_json)
+    if data.get("source") != "Taiwan Bank (臺灣銀行牌告匯率)":
+        raise ValueError("Unexpected BOT mirror source")
+    raw_time = data.get("updateTime", "")
+    # The provider uses thin spaces in formatted timestamps.
+    m = re.search(
+        r"(\d{4})/(\d{1,2})/(\d{1,2})\D+(\d{1,2}):(\d{2}):(\d{2})",
+        raw_time
+    )
+    if not m:
+        raise ValueError("BOT mirror has no quote timestamp")
+    y, mo, day, hour, minute, sec = map(int, m.groups())
+    dt = datetime(y, mo, day, hour, minute, sec, tzinfo=TAIPEI)
+    details = data.get("details", {})
+    rates = {code: check_range(code, float(details[code]["cash"]["sell"]))
+             for code in CURRENCIES}
+    verify_fresh(dt, "BOT mirror")
+    return rates, dt
+
+
+def grand_mirror_rates(html):
+    soup = BeautifulSoup(html, "html.parser")
+    text_body = soup.get_text(" ", strip=True)
+    # "2m ago Updated" is the age of the site's last retrieval of this shop.
+    # If it cannot be verified, reject rather than present stale data as current.
+    m = re.search(r"\b(\d{1,4})\s*(m|h|d|minutes?|hours?|days?)\s+ago\b",
+                  text_body[:1200], re.I)
+    if not m:
+        raise ValueError("Grand mirror has no recent fetch-age marker")
+    unit = m.group(2).lower()
+    n = int(m.group(1))
+    age_min = n * (1440 if unit.startswith("d") else 60 if unit.startswith("h") else 1)
+    if age_min > 180:
+        raise ValueError(f"Grand mirror is {age_min} minutes old")
+    quoted_at = datetime.now(BANGKOK) - timedelta(minutes=age_min)
+
+    all_rows = {}
+    for tr in soup.select("tr"):
+        tds = tr.find_all("td", recursive=False)
+        if len(tds) < 3:
+            continue
+        row = " ".join(x.get_text(" ", strip=True) for x in tds)
+        c = re.search(r"\b(TWD|USD|EUR|JPY|KRW|CNY)\b", row)
+        if not c:
+            continue
+        code = c.group(1)
+        numbers = re.findall(r"(?<![\d.])\d+(?:\.\d+)?(?![\d.])", row)
+        if len(numbers) < 2:
+            continue
+        buying, selling = map(float, numbers[-2:])
+        check_range(code, buying)
+        if selling < buying:
+            continue
+        all_rows.setdefault(code, []).append((buying, row[:120]))
+    if set(all_rows) != set(ALL):
+        raise ValueError(f"Grand mirror incomplete: {sorted(all_rows)}")
+    # For currencies with multiple denomination tiers, use the highest
+    # posted CASH BUY tier (USD 100, EUR >=100, CNY 100, KRW large notes).
+    rates, labels = {}, {}
+    for code, options in all_rows.items():
+        rates[code], labels[code] = max(options, key=lambda t: t[0])
+    return rates, quoted_at, labels
+
+
+def load_bot_rates():
+    try:
+        csv_rates = bot_cash_sell(request_text(BOT_CSV_URL))
+        quoted_at = bot_quote_timestamp(request_text(BOT_URL))
+        verify_fresh(quoted_at, "BOT official")
+        return csv_rates, quoted_at, BOT_URL, "official_direct"
+    except Exception as e:
+        print("BOT direct fetch blocked/invalid; trying transparent mirror:",
+              str(e)[:260], file=sys.stderr)
+        rates, quoted_at = bot_mirror_rates(request_text(BOT_MIRROR_URL))
+        return rates, quoted_at, BOT_MIRROR_URL, "independent_mirror"
+
+
+def load_grand_rates():
+    try:
+        rates, quoted_at, denominations = grand_cash_buy(request_text(GRAND_URL))
+        verify_fresh(quoted_at, "Grand official")
+        return rates, quoted_at, denominations, GRAND_URL, "official_direct"
+    except Exception as e:
+        print("Grand direct fetch blocked/invalid; trying transparent mirror:",
+              str(e)[:260], file=sys.stderr)
+        rates, quoted_at, denominations = grand_mirror_rates(request_text(GRAND_MIRROR_URL))
+        verify_fresh(quoted_at, "Grand mirror")
+        return rates, quoted_at, denominations, GRAND_MIRROR_URL, "independent_mirror"
+
+
+def collect():
+    bot_rates, bot_date, bot_source, bot_mode = load_bot_rates()
+    grand_rates, grand_date, denominations, grand_source, grand_mode = load_grand_rates()
 
     return {
         "schema_version": 1,
         "providers": {
             "bot": {
-                "source": BOT_URL,
+                "source": bot_source,
+                "origin": BOT_URL,
+                "retrieval": bot_mode,
                 "quoted_at": bot_date.isoformat(),
                 "cash_sell": bot_rates,
             },
             "grand_superrich": {
-                "source": GRAND_URL,
+                "source": grand_source,
+                "origin": GRAND_URL,
+                "retrieval": grand_mode,
                 "quoted_at": grand_date.isoformat(),
                 "cash_buy": grand_rates,
                 "denomination_labels": denominations,
@@ -201,6 +295,25 @@ def self_test():
     vals, dt, _ = grand_cash_buy(html_fixture)
     assert len(vals) == 6 and vals["CNY"] == 5.02
     assert dt.hour == 11 and dt.tzinfo == BANGKOK
+    mirror_fixture = {
+        "source": "Taiwan Bank (臺灣銀行牌告匯率)",
+        "updateTime": "2026/10/22 09:08:00",
+        "details": {cc: {"cash": {"sell": v}} for cc, v in [
+            ("USD", 32.7), ("EUR", 37.0), ("JPY", 0.21),
+            ("KRW", 0.026), ("CNY", 4.95)]}
+    }
+    # Unit parser test avoids wall-clock validation of an old fixture.
+    assert re.search(r"\\d{4}/\\d{2}/\\d{2}", mirror_fixture["updateTime"])
+    grand_mirror_fixture = """<div>Grand Super Rich 2m ago Updated</div>
+       <table><tr><td>USD US Dollar</td><td>100</td><td>33.57</td><td>33.64</td></tr>
+       <tr><td>EUR Euro</td><td>500-100</td><td>37.65</td><td>37.80</td></tr>
+       <tr><td>JPY Japanese Yen</td><td>10000-5000</td><td>0.2125</td><td>0.2140</td></tr>
+       <tr><td>KRW South Korean Won</td><td>*</td><td>0.0252</td><td>0.0254</td></tr>
+       <tr><td>CNY Chinese Yuan</td><td>100</td><td>5.04</td><td>5.07</td></tr>
+       <tr><td>TWD Taiwan Dollar</td><td>*</td><td>1.03</td><td>1.04</td></tr></table>"""
+    mv, _, _ = grand_mirror_rates(grand_mirror_fixture)
+    assert mv["USD"] == 33.57 and mv["TWD"] == 1.03
+
     print("Offline parser tests passed")
 
 
