@@ -18,7 +18,7 @@
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
       "origin": "https://www.grandsuperrich.com/rate.php",
       "retrieval": "independent_mirror",
-      "quoted_at": "2026-10-24T21:32:14.191979+07:00",
+      "quoted_at": "2026-10-25T13:06:59.210125+07:00",
       "cash_buy": {
         "CNY": 5.03,
         "EUR": 37.65,
@@ -37,5 +37,5 @@
       }
     }
   },
-  "fetched_at": "2026-10-24T14:34:14+00:00"
+  "fetched_at": "2026-10-25T06:08:59+00:00"
 }
