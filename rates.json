@@ -5,12 +5,12 @@
       "source": "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json",
       "origin": "https://rate.bot.com.tw/xrt",
       "retrieval": "independent_mirror",
-      "quoted_at": "2026-10-26T18:32:16+08:00",
+      "quoted_at": "2026-10-27T00:57:38+08:00",
       "cash_sell": {
         "USD": 32.775,
-        "EUR": 36.96,
-        "JPY": 0.2103,
-        "KRW": 0.02671,
+        "EUR": 36.89,
+        "JPY": 0.21,
+        "KRW": 0.02668,
         "CNY": 4.94
       }
     },
@@ -18,7 +18,7 @@
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
       "origin": "https://www.grandsuperrich.com/rate.php",
       "retrieval": "independent_mirror",
-      "quoted_at": "2026-10-26T20:12:40.002831+07:00",
+      "quoted_at": "2026-10-27T02:20:28.739997+07:00",
       "cash_buy": {
         "CNY": 5.04,
         "EUR": 37.75,
@@ -37,5 +37,5 @@
       }
     }
   },
-  "fetched_at": "2026-10-26T13:14:40+00:00"
+  "fetched_at": "2026-10-26T19:22:28+00:00"
 }
