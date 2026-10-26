@@ -327,6 +327,23 @@ def main():
         previous = json.loads(OUT.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         pass
+    # Do not regress to an older quotation just because a mirror is lagging.
+    # Either source going backwards would make the combined comparison misleading.
+    if previous and isinstance(previous.get("providers"), dict):
+        for provider in ("bot", "grand_superrich"):
+            try:
+                old_time = datetime.fromisoformat(
+                    previous["providers"][provider]["quoted_at"]
+                ).astimezone(timezone.utc)
+                new_time = datetime.fromisoformat(
+                    payload["providers"][provider]["quoted_at"]
+                ).astimezone(timezone.utc)
+            except (KeyError, TypeError, ValueError) as err:
+                raise ValueError("Cannot compare quotation timestamps") from err
+            if new_time < old_time:
+                print(f"Skipping update: {provider} source went backwards "
+                      f"({new_time.isoformat()} < {old_time.isoformat()})")
+                return
     if previous and previous.get("providers") == payload["providers"]:
         print("No quotation changes; no file write")
         return
