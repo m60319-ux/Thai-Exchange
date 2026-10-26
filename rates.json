@@ -5,12 +5,12 @@
       "source": "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json",
       "origin": "https://rate.bot.com.tw/xrt",
       "retrieval": "independent_mirror",
-      "quoted_at": "2026-10-26T12:38:48+08:00",
+      "quoted_at": "2026-10-26T18:32:16+08:00",
       "cash_sell": {
         "USD": 32.775,
-        "EUR": 37.02,
-        "JPY": 0.2108,
-        "KRW": 0.02676,
+        "EUR": 36.96,
+        "JPY": 0.2103,
+        "KRW": 0.02671,
         "CNY": 4.94
       }
     },
@@ -18,24 +18,24 @@
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
       "origin": "https://www.grandsuperrich.com/rate.php",
       "retrieval": "independent_mirror",
-      "quoted_at": "2026-10-26T13:14:43.601530+07:00",
+      "quoted_at": "2026-10-26T17:53:52.605561+07:00",
       "cash_buy": {
-        "CNY": 5.05,
+        "CNY": 5.04,
         "EUR": 37.75,
         "JPY": 0.2145,
         "KRW": 0.0254,
         "TWD": 1.03,
-        "USD": 33.71
+        "USD": 33.73
       },
       "denomination_labels": {
-        "CNY": "CNY Chinese Yuan 100 5.05 5.08",
+        "CNY": "CNY Chinese Yuan 100 5.04 5.07",
         "EUR": "EUR Euro 500-100 37.75 37.90",
         "JPY": "JPY Japanese Yen 1000 0.2145 0.2160",
         "KRW": "KRW South Korean Won * 0.0254 0.0256",
         "TWD": "TWD Taiwan Dollar * 1.03 1.04",
-        "USD": "USD US Dollar 100 33.71 33.78"
+        "USD": "USD US Dollar 100 33.73 33.79"
       }
     }
   },
-  "fetched_at": "2026-10-26T06:15:43+00:00"
+  "fetched_at": "2026-10-26T10:58:52+00:00"
 }
