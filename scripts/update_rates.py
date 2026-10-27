@@ -155,19 +155,24 @@ def parse_grand_timestamp(html):
 
 
 def banknote_match(code, label):
-    # Standardize punctuation/spacing; choose exact tier and reject other tiers.
-    compact = re.sub(r"[\s,/._-]+", "", label.upper())
+    # Official rows use "USD 100"; mirror rows use "USD US Dollar 100".
+    # Inspect the denomination numbers after the ISO code, ignoring currency names.
+    m = re.search(r"\b" + re.escape(code) + r"\b(.*)", label.upper())
+    if not m:
+        return False
+    tail = m.group(1)
+    nums = re.findall(r"\b\d+\b", tail)
     if code == "USD":
-        return "USD100" in compact and "USD1000" not in compact
+        return nums == ["100"]
     if code == "EUR":
-        return "EUR500100" in compact
+        return nums == ["500", "100"]
     if code == "JPY":
-        return "JPY100005000" in compact
-    if code == "KRW":
-        return re.search(r"\bKRW\b", label.upper()) is not None and "1000" not in label
+        return nums == ["10000", "5000"]
     if code == "CNY":
-        return "CNY100" in compact and "CNY1000" not in compact
-    return re.search(r"\bTWD\b", label.upper()) is not None
+        return nums == ["100"]
+    if code == "KRW":
+        return "1000" not in nums
+    return not nums
 
 
 def parse_grand_table(html):
