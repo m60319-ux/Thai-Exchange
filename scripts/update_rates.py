@@ -177,21 +177,36 @@ def banknote_match(code, label):
 
 def parse_grand_table(html):
     soup = BeautifulSoup(html, "html.parser")
-    selections = {}
-    labels = {}
+    candidates = []
+    # Grand SuperRich migrated to gsr-rate-row DIVs (October 2026).
+    # Read the cash BUY cell, not the SELL cell or a different banknote tier.
+    for row in soup.select(".gsr-rate-row"):
+        currency = row.select_one(".gsr-rate-currency")
+        buy = row.select_one(".gsr-rate-buy")
+        sell = row.select_one(".gsr-rate-sell")
+        if currency and buy and sell:
+            candidates.append((currency.get_text(" ", strip=True),
+                               buy.get_text(" ", strip=True),
+                               sell.get_text(" ", strip=True)))
+    # Third-party mirror uses a normal TABLE (or older official formats).
     for tr in soup.select("tr"):
         cells = tr.find_all("td", recursive=False)
         if len(cells) < 3:
             continue
         label = " ".join(cell.get_text(" ", strip=True) for cell in cells[:-2])
+        candidates.append((label, cells[-2].get_text(" ", strip=True),
+                            cells[-1].get_text(" ", strip=True)))
+    selections = {}
+    labels = {}
+    for label, buy_text, sell_text in candidates:
         matched = re.search(r"\b(TWD|USD|EUR|JPY|KRW|CNY)\b", label, re.I)
         if not matched:
             continue
         code = matched.group(1).upper()
         if not banknote_match(code, label):
             continue
-        buy_text = cells[-2].get_text(" ", strip=True).replace(",", "")
-        sell_text = cells[-1].get_text(" ", strip=True).replace(",", "")
+        buy_text = buy_text.replace(",", "")
+        sell_text = sell_text.replace(",", "")
         if not re.fullmatch(r"\d+(?:\.\d+)?", buy_text) or not re.fullmatch(r"\d+(?:\.\d+)?", sell_text):
             continue
         buying = price(code, buy_text)
@@ -354,6 +369,23 @@ def self_test():
     ) + "</table>"
     assert parse_bot_timestamp(bot_html).hour == 16
     assert parse_bot_html(bot_html)["USD"] == 32.8
+    grand_div = """<div>Last Update 15:44:40 27/Oct/2026</div>
+    <div class="gsr-rate-row"><div class="gsr-rate-currency-box">
+    <div class="gsr-rate-currency">USD 100</div></div>
+    <div class="gsr-rate-buy">33.69</div><div class="gsr-rate-sell">33.74</div></div>
+    <div class="gsr-rate-row"><div class="gsr-rate-currency">EUR 500-100</div>
+    <div class="gsr-rate-buy">37.55</div><div class="gsr-rate-sell">37.70</div></div>
+    <div class="gsr-rate-row"><div class="gsr-rate-currency">JPY 10000 - 5000</div>
+    <div class="gsr-rate-buy">0.2135</div><div class="gsr-rate-sell">0.2150</div></div>
+    <div class="gsr-rate-row"><div class="gsr-rate-currency">KRW</div>
+    <div class="gsr-rate-buy">0.0255</div><div class="gsr-rate-sell">0.0257</div></div>
+    <div class="gsr-rate-row"><div class="gsr-rate-currency">CNY 100</div>
+    <div class="gsr-rate-buy">5.04</div><div class="gsr-rate-sell">5.07</div></div>
+    <div class="gsr-rate-row"><div class="gsr-rate-currency">TWD</div>
+    <div class="gsr-rate-buy">1.03</div><div class="gsr-rate-sell">1.04</div></div>"""
+    div_prices, _ = parse_grand_table(grand_div)
+    assert div_prices["USD"] == 33.69 and div_prices["TWD"] == 1.03
+    assert parse_grand_timestamp(grand_div).hour == 15
     assert failure_record(BOT_URL, ValueError("blocked"))["status"] == "failed"
     print("Offline source-separation, currency, banknote and timestamp tests passed")
 
