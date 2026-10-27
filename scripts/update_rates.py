@@ -285,7 +285,10 @@ def official_grand():
                           for tr in soup.select("tr")[:6]]
                 print("Grand official HTML diagnostics:",
                       "rows=", len(soup.select("tr")),
-                      "examples=", repr(sample), file=sys.stderr)
+                      "examples=", repr(sample),
+                      "visible_text=", repr(soup.get_text(" ", strip=True)[:450]),
+                      "USD_excerpt=", repr(html[max(0,html.find("USD")-120):html.find("USD")+230]) if "USD" in html else "(no USD token)",
+                      file=sys.stderr)
                 raise
             assert_fresh(date, "Grand SuperRich 官方")
             return ok_record(url, date, "official_direct",
