@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "checked_at": "2026-10-27T08:45:56+00:00",
+  "checked_at": "2026-10-27T08:47:37+00:00",
   "official": {
     "bot": {
       "status": "failed",
@@ -29,9 +29,27 @@
       }
     },
     "grand_superrich": {
-      "status": "failed",
+      "status": "ok",
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
-      "error": "Grand SuperRich 缺少指定面額牌告：CNY,EUR,JPY,USD"
+      "retrieval": "third_party_mirror",
+      "quoted_at": "2026-10-27T15:45:37.794430+07:00",
+      "timestamp_type": "mirror_fetch_age_estimate",
+      "cash_buy": {
+        "CNY": 5.04,
+        "EUR": 37.55,
+        "JPY": 0.2135,
+        "KRW": 0.0255,
+        "TWD": 1.03,
+        "USD": 33.69
+      },
+      "denomination_labels": {
+        "CNY": "CNY 100",
+        "EUR": "EUR 500-100",
+        "JPY": "JPY 10000-5000",
+        "KRW": "KRW（非 KRW 1000 小鈔）",
+        "TWD": "TWD（不限面額）",
+        "USD": "USD 100"
+      }
     }
   }
 }
