@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Collect Bank of Taiwan CASH SELL and Grand SuperRich CASH BUY quotations.
+"""Separate OFFICIAL cash quotations from THIRD-PARTY reference quotations.
 
-Never substitute spot/market rates; reject old, missing, or invalid source data.
-Requires: requests, beautifulsoup4 (see GitHub workflow).
+Never promote a mirrored quote to official. Missing official quotes are failures,
+not permission to silently substitute estimated or market rates.
 """
 import csv
 import io
@@ -17,304 +17,321 @@ from zoneinfo import ZoneInfo
 import requests
 from bs4 import BeautifulSoup
 
-BOT_URL = "https://rate.bot.com.tw/xrt"
+BOT_URL = "https://rate.bot.com.tw/xrt?Lang=zh-TW"
 BOT_CSV_URL = "https://rate.bot.com.tw/xrt/flcsv/0/day"
 GRAND_URL = "https://www.grandsuperrich.com/rate.php"
-CURRENCIES = ("USD", "EUR", "JPY", "KRW", "CNY")
-ALL = ("TWD", *CURRENCIES)
-BOUNDS = {
-    "TWD": (0.6, 1.5),
-    "USD": (20.0, 50.0),
-    "EUR": (25.0, 60.0),
-    "JPY": (0.12, 0.40),
-    "KRW": (0.01, 0.06),
-    "CNY": (3.0, 8.0),
-}
-TAIPEI = ZoneInfo("Asia/Taipei")
-BANGKOK = ZoneInfo("Asia/Bangkok")
+BOT_MIRROR_URL = "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json"
+GRAND_MIRROR_URL = "https://exchange.ruamthai.com/en/shop/grand-superrich"
 OUT = Path(__file__).resolve().parents[1] / "rates.json"
+TW = ZoneInfo("Asia/Taipei")
+TH = ZoneInfo("Asia/Bangkok")
+CURRENCIES = ("TWD", "USD", "EUR", "JPY", "KRW", "CNY")
+BANK_CURRENCIES = CURRENCIES[1:]
+BOUNDS = {
+    "TWD": (.6, 1.5), "USD": (20, 50), "EUR": (25, 60),
+    "JPY": (.12, .4), "KRW": (.01, .06), "CNY": (3, 8)
+}
+# Exact intended cash banknote tier, *not* an arbitrary maximum across all rows.
+DENOMINATIONS = {
+    "TWD": "TWD（不限面額）",
+    "USD": "USD 100",
+    "EUR": "EUR 500-100",
+    "JPY": "JPY 10000-5000",
+    "KRW": "KRW（非 KRW 1000 小鈔）",
+    "CNY": "CNY 100"
+}
 
 
 def request_text(url):
-    r = requests.get(
+    response = requests.get(
         url,
-        timeout=(12, 30),
-        headers={
-            "User-Agent": "Mozilla/5.0 (compatible; Thai-Exchange/1.0; public cash-rate check)",
-            "Accept": "text/html,text/csv,*/*",
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
-        },
-        params={"_": int(datetime.now(timezone.utc).timestamp())},
+        timeout=(12, 25),
+        headers={"User-Agent": "Mozilla/5.0 (Thai-Exchange/2.0; source-attributed quotations)",
+                 "Accept": "text/html,text/csv,application/json,*/*",
+                 "Cache-Control": "no-cache"},
+        params={"_": int(datetime.now(timezone.utc).timestamp())}
     )
-    r.raise_for_status()
-    r.encoding = "utf-8-sig"
-    if not r.text.strip():
-        raise ValueError("Empty response: " + url)
-    return r.text
+    response.raise_for_status()
+    response.encoding = "utf-8-sig"
+    html = response.text.strip()
+    if not html or "Challenge Validation" in html[:4000]:
+        raise ValueError("網站回傳防護驗證頁，而非匯率牌告")
+    return html
 
 
-def check_range(code, value):
+def price(code, value):
+    val = float(value)
     low, high = BOUNDS[code]
-    if not (low <= value <= high):
-        raise ValueError(f"{code}: suspicious/out-of-range cash quotation {value}")
-    return value
+    if not low <= val <= high:
+        raise ValueError(f"{code} 報價超出合理範圍: {val}")
+    return val
 
 
-def bot_cash_sell(csv_text):
-    rates = {}
-    for row in csv.reader(io.StringIO(csv_text.lstrip("\ufeff"))):
-        if len(row) <= 12:
-            continue
-        code = row[0].strip().upper().replace("\ufeff", "")
-        if code not in CURRENCIES:
-            continue
-        # Official BOT flcsv: first side = bank BUY; second side
-        # starts at index 11, and CASH SELL is index 12.
-        rates[code] = check_range(code, float(row[12].strip()))
-    if set(rates) != set(CURRENCIES):
-        raise ValueError(f"BOT cash sell incomplete: {sorted(rates)}; response_prefix={csv_text[:260]!r}")
-    return rates
+def assert_fresh(dt, label, hours=120):
+    age = datetime.now(timezone.utc) - dt.astimezone(timezone.utc)
+    if age < -timedelta(hours=2) or age > timedelta(hours=hours):
+        raise ValueError(f"{label} 牌告時間不合理或已過期: {dt.isoformat()}")
 
 
-def bot_quote_timestamp(html):
-    txt = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
+def parse_bot_timestamp(html):
+    text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
     m = re.search(
         r"(?:牌價最新掛牌時間|Quoted\s+(?:Date|Time)|Latest\s+Quotation\s+Time)"
         r"\s*[:：]?\s*(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})"
-        r"\s+(\d{1,2}):(\d{2})(?::(\d{2}))?",
-        txt, re.I
+        r"\s+(\d{1,2}):(\d{2})(?::(\d{2}))?", text, re.I
     )
     if not m:
-        raise ValueError("BOT published quote timestamp not found")
-    y, mo, d, h, minute, second = m.groups()
-    return datetime(int(y), int(mo), int(d), int(h), int(minute),
-                    int(second or 0), tzinfo=TAIPEI)
+        raise ValueError("臺銀官方頁面缺少可驗證的牌告時間")
+    y, mon, d, h, minute, sec = m.groups()
+    return datetime(int(y), int(mon), int(d), int(h), int(minute),
+                    int(sec or 0), tzinfo=TW)
 
 
-def grand_cash_buy(html):
+def parse_bot_html(html):
     soup = BeautifulSoup(html, "html.parser")
-    txt = soup.get_text(" ", strip=True)
+    rates = {}
+    for tr in soup.select("tr"):
+        cells = tr.find_all("td", recursive=False)
+        if len(cells) < 3:
+            continue
+        content = tr.get_text(" ", strip=True)
+        match = re.search(r"\b(USD|EUR|JPY|KRW|CNY)\b", content)
+        if not match:
+            continue
+        ccy = match.group(1)
+        # Bank of Taiwan labels these cells as CASH RATE; ignore spot cells.
+        cash_cells = tr.select("td.rate-content-cash")
+        sell_cell = cash_cells[1] if len(cash_cells) >= 2 else None
+        if sell_cell is None:
+            for td in cells:
+                header = (td.get("data-table") or "").strip().lower()
+                cls = " ".join(td.get("class", [])).lower()
+                if ("本行賣出" in header or "cash selling" in header or
+                    ("cash" in cls and "sell" in cls)):
+                    sell_cell = td
+                    break
+        if sell_cell is None:
+            raise ValueError(f"臺銀 {ccy} 找不到現鈔賣出欄位")
+        m = re.search(r"(?<!\d)(\d+(?:\.\d+)?)(?!\d)", sell_cell.get_text(" ", strip=True))
+        if not m:
+            raise ValueError(f"臺銀 {ccy} 現鈔賣出欄位沒有價格")
+        rates[ccy] = price(ccy, m.group(1))
+    if set(rates) != set(BANK_CURRENCIES):
+        raise ValueError(f"臺銀官方現鈔賣出價不完整: {sorted(rates)}")
+    return rates
+
+
+def parse_bot_csv(body):
+    rates = {}
+    for row in csv.reader(io.StringIO(body.lstrip("\ufeff"))):
+        if len(row) <= 12:
+            continue
+        code = row[0].strip().upper()
+        if code in BANK_CURRENCIES:
+            rates[code] = price(code, row[12].strip())
+    if set(rates) != set(BANK_CURRENCIES):
+        raise ValueError(f"臺銀官方 CSV 現鈔賣出價不完整: {sorted(rates)}")
+    return rates
+
+
+def parse_grand_timestamp(html):
+    txt = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
     m = re.search(
         r"Last\s+updated\s+exchange\s+rate\s*[:：]\s*"
-        r"([A-Za-z]+\s+\d{1,2},?\s+\d{4})\s*[-–]\s*"
-        r"(\d{1,2}:\d{2}:\d{2})", txt, re.I
+        r"([A-Za-z]+\s+\d{1,2},?\s+\d{4})\s*[-–]\s*(\d{1,2}:\d{2}:\d{2})",
+        txt, re.I
     )
-    if not m:
-        raise ValueError("Grand SuperRich published quote timestamp not found")
-    datepart = re.sub(r"\s+", " ", m.group(1)).replace(",", ",")
-    if "," not in datepart:
-        datepart = re.sub(r"(\d{1,2}) (\d{4})$", r"\1, \2", datepart)
-    quoted_at = datetime.strptime(
-        datepart + " " + m.group(2), "%B %d, %Y %H:%M:%S"
-    ).replace(tzinfo=BANGKOK)
-
-    rates = {}
-    denomin = {}
-    for tr in soup.select("tr"):
-        cells = tr.find_all(["td"], recursive=False)
-        if len(cells) < 2:
-            continue
-        row = " ".join(td.get_text(" ", strip=True) for td in cells)
-        found = re.search(r"\b(TWD|USD|EUR|JPY|KRW|CNY)\b", row)
-        if not found:
-            continue
-        code = found.group(1)
-        if code in rates:
-            continue  # first quotation uses the preferred large-banknote tier
-        number_tokens = re.findall(r"(?<![\d.])\d+(?:\.\d+)?(?![\d.])", row)
-        if len(number_tokens) < 2:
-            continue
-        buying, selling = map(float, number_tokens[-2:])
-        check_range(code, buying)
-        if selling < buying:
-            raise ValueError(f"Grand SuperRich {code}: buy > sell")
-        rates[code] = buying
-        denomin[code] = row[:120]
-
-    if set(rates) != set(ALL):
-        raise ValueError(f"Grand SuperRich cash buy incomplete: {sorted(rates)}")
-    return rates, quoted_at, denomin
+    if m:
+        when = re.sub(r"\s+", " ", m.group(1)).replace(",", "")
+        dt = datetime.strptime(when+" "+m.group(2), "%B %d %Y %H:%M:%S")
+        return dt.replace(tzinfo=TH)
+    m = re.search(r"Last\s+Update\s*(\d{1,2}):(\d{2}):(\d{2})\s+(\d{1,2})/([A-Za-z]+)/(\d{4})",
+                  txt, re.I)
+    if m:
+        h, minute, second, d, mon, y = m.groups()
+        dt = datetime.strptime(f"{d}/{mon}/{y} {h}:{minute}:{second}", "%d/%b/%Y %H:%M:%S")
+        return dt.replace(tzinfo=TH)
+    raise ValueError("Grand SuperRich 官方頁面缺少可驗證的牌告時間")
 
 
-def verify_fresh(date_value, source, max_age_hours=120):
-    now = datetime.now(timezone.utc)
-    age = now - date_value.astimezone(timezone.utc)
-    if age < -timedelta(hours=2) or age > timedelta(hours=max_age_hours):
-        raise ValueError(
-            f"{source} quotation date unacceptable: {date_value.isoformat()}, "
-            f"age_hours={age.total_seconds()/3600:.1f}"
-        )
+def banknote_match(code, label):
+    # Standardize punctuation/spacing; choose exact tier and reject other tiers.
+    compact = re.sub(r"[\s,/._-]+", "", label.upper())
+    if code == "USD":
+        return "USD100" in compact and "USD1000" not in compact
+    if code == "EUR":
+        return "EUR500100" in compact
+    if code == "JPY":
+        return "JPY100005000" in compact
+    if code == "KRW":
+        return re.search(r"\bKRW\b", label.upper()) is not None and "1000" not in label
+    if code == "CNY":
+        return "CNY100" in compact and "CNY1000" not in compact
+    return re.search(r"\bTWD\b", label.upper()) is not None
 
 
-# Mirrors below are explicitly labeled. The rate values are official posted
-# cash quotations as reproduced by the aggregator, NOT bank/market mid-rates.
-BOT_MIRROR_URL = "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json"
-GRAND_MIRROR_URL = "https://exchange.ruamthai.com/en/shop/grand-superrich"
-
-
-def bot_mirror_rates(raw_json):
-    data = json.loads(raw_json)
-    if data.get("source") != "Taiwan Bank (臺灣銀行牌告匯率)":
-        raise ValueError("Unexpected BOT mirror source")
-    raw_time = data.get("updateTime", "")
-    # The provider uses thin spaces in formatted timestamps.
-    m = re.search(
-        r"(\d{4})/(\d{1,2})/(\d{1,2})\D+(\d{1,2}):(\d{2}):(\d{2})",
-        raw_time
-    )
-    if not m:
-        raise ValueError("BOT mirror has no quote timestamp")
-    y, mo, day, hour, minute, sec = map(int, m.groups())
-    dt = datetime(y, mo, day, hour, minute, sec, tzinfo=TAIPEI)
-    details = data.get("details", {})
-    rates = {code: check_range(code, float(details[code]["cash"]["sell"]))
-             for code in CURRENCIES}
-    verify_fresh(dt, "BOT mirror")
-    return rates, dt
-
-
-def grand_mirror_rates(html):
+def parse_grand_table(html):
     soup = BeautifulSoup(html, "html.parser")
-    text_body = soup.get_text(" ", strip=True)
-    # "2m ago Updated" is the age of the site's last retrieval of this shop.
-    # If it cannot be verified, reject rather than present stale data as current.
-    m = re.search(r"\b(\d{1,4})\s*(m|h|d|minutes?|hours?|days?)\s+ago\b",
-                  text_body[:1200], re.I)
-    if not m:
-        raise ValueError("Grand mirror has no recent fetch-age marker")
-    unit = m.group(2).lower()
-    n = int(m.group(1))
-    age_min = n * (1440 if unit.startswith("d") else 60 if unit.startswith("h") else 1)
-    if age_min > 180:
-        raise ValueError(f"Grand mirror is {age_min} minutes old")
-    quoted_at = datetime.now(BANGKOK) - timedelta(minutes=age_min)
-
-    all_rows = {}
+    selections = {}
+    labels = {}
     for tr in soup.select("tr"):
-        tds = tr.find_all("td", recursive=False)
-        if len(tds) < 3:
+        cells = tr.find_all("td", recursive=False)
+        if len(cells) < 3:
             continue
-        row = " ".join(x.get_text(" ", strip=True) for x in tds)
-        c = re.search(r"\b(TWD|USD|EUR|JPY|KRW|CNY)\b", row)
-        if not c:
+        label = " ".join(cell.get_text(" ", strip=True) for cell in cells[:-2])
+        matched = re.search(r"\b(TWD|USD|EUR|JPY|KRW|CNY)\b", label, re.I)
+        if not matched:
             continue
-        code = c.group(1)
-        numbers = re.findall(r"(?<![\d.])\d+(?:\.\d+)?(?![\d.])", row)
-        if len(numbers) < 2:
+        code = matched.group(1).upper()
+        if not banknote_match(code, label):
             continue
-        buying, selling = map(float, numbers[-2:])
-        check_range(code, buying)
+        buy_text = cells[-2].get_text(" ", strip=True).replace(",", "")
+        sell_text = cells[-1].get_text(" ", strip=True).replace(",", "")
+        if not re.fullmatch(r"\d+(?:\.\d+)?", buy_text) or not re.fullmatch(r"\d+(?:\.\d+)?", sell_text):
+            continue
+        buying = price(code, buy_text)
+        selling = float(sell_text)
         if selling < buying:
-            continue
-        all_rows.setdefault(code, []).append((buying, row[:120]))
-    if set(all_rows) != set(ALL):
-        raise ValueError(f"Grand mirror incomplete: {sorted(all_rows)}")
-    # For currencies with multiple denomination tiers, use the highest
-    # posted CASH BUY tier (USD 100, EUR >=100, CNY 100, KRW large notes).
-    rates, labels = {}, {}
-    for code, options in all_rows.items():
-        rates[code], labels[code] = max(options, key=lambda t: t[0])
-    return rates, quoted_at, labels
+            raise ValueError(f"Grand SuperRich {code}: 買入大於賣出")
+        if code in selections and selections[code] != buying:
+            raise ValueError(f"Grand SuperRich {code}: 同面額有衝突報價")
+        selections[code] = buying
+        labels[code] = DENOMINATIONS[code]
+    if set(selections) != set(CURRENCIES):
+        raise ValueError("Grand SuperRich 缺少指定面額牌告：" +
+                         ",".join(sorted(set(CURRENCIES) - set(selections))))
+    return selections, labels
 
 
-def load_bot_rates():
+def bot_mirror(raw):
+    j = json.loads(raw)
+    if j.get("source") != "Taiwan Bank (臺灣銀行牌告匯率)":
+        raise ValueError("臺銀鏡像來源標籤不符合預期")
+    stamp = j.get("updateTime", "")
+    m = re.search(r"(\d{4})/(\d{1,2})/(\d{1,2})\D+(\d{1,2}):(\d{2}):(\d{2})", stamp)
+    if not m:
+        raise ValueError("臺銀鏡像缺少報價時間")
+    y, mo, d, h, minute, sec = map(int, m.groups())
+    quoted_at = datetime(y, mo, d, h, minute, sec, tzinfo=TW)
+    assert_fresh(quoted_at, "臺銀鏡像")
+    rates = {code: price(code, j["details"][code]["cash"]["sell"]) for code in BANK_CURRENCIES}
+    return quoted_at, rates
+
+
+def grand_mirror(raw):
+    soup = BeautifulSoup(raw, "html.parser")
+    text = soup.get_text(" ", strip=True)
+    m = re.search(r"\b(\d{1,4})\s*(m|h|d|minutes?|hours?|days?)\s+ago\b",
+                  text[:1500], re.I)
+    if not m:
+        raise ValueError("Grand SuperRich 鏡像沒有最近取得時間")
+    n = int(m.group(1))
+    unit = m.group(2).lower()
+    age_minutes = n * (1440 if unit.startswith("d") else 60 if unit.startswith("h") else 1)
+    if age_minutes > 180:
+        raise ValueError("Grand SuperRich 鏡像超過 3 小時未取得資料")
+    estimate = datetime.now(TH) - timedelta(minutes=age_minutes)
+    rates, labels = parse_grand_table(raw)
+    return estimate, rates, labels
+
+
+def ok_record(url, timestamp, kind, **fields):
+    return {"status": "ok", "source": url, "retrieval": kind,
+            "quoted_at": timestamp.isoformat(), **fields}
+
+
+def failure_record(url, err):
+    return {"status": "failed", "source": url, "error": str(err)[:230]}
+
+
+def attempt(func, url, name):
     try:
-        csv_rates = bot_cash_sell(request_text(BOT_CSV_URL))
-        quoted_at = bot_quote_timestamp(request_text(BOT_URL))
-        verify_fresh(quoted_at, "BOT official")
-        return csv_rates, quoted_at, BOT_URL, "official_direct"
-    except Exception as e:
-        print("BOT direct fetch blocked/invalid; trying transparent mirror:",
-              str(e)[:260], file=sys.stderr)
-        rates, quoted_at = bot_mirror_rates(request_text(BOT_MIRROR_URL))
-        return rates, quoted_at, BOT_MIRROR_URL, "independent_mirror"
+        data = func()
+        print(name, "OK:", data.get("quoted_at", ""))
+        return data
+    except Exception as ex:
+        print(name, "FAILED:", str(ex)[:230], file=sys.stderr)
+        return failure_record(url, ex)
 
 
-def load_grand_rates():
+def official_bot():
+    html = request_text(BOT_URL)
+    date = parse_bot_timestamp(html)
     try:
-        rates, quoted_at, denominations = grand_cash_buy(request_text(GRAND_URL))
-        verify_fresh(quoted_at, "Grand official")
-        return rates, quoted_at, denominations, GRAND_URL, "official_direct"
-    except Exception as e:
-        print("Grand direct fetch blocked/invalid; trying transparent mirror:",
-              str(e)[:260], file=sys.stderr)
-        rates, quoted_at, denominations = grand_mirror_rates(request_text(GRAND_MIRROR_URL))
-        verify_fresh(quoted_at, "Grand mirror")
-        return rates, quoted_at, denominations, GRAND_MIRROR_URL, "independent_mirror"
+        rates = parse_bot_html(html)
+    except ValueError:
+        rates = parse_bot_csv(request_text(BOT_CSV_URL))
+    assert_fresh(date, "臺銀官方")
+    return ok_record(BOT_URL, date, "official_direct", cash_sell=rates)
+
+
+def official_grand():
+    html = request_text(GRAND_URL)
+    date = parse_grand_timestamp(html)
+    rates, labels = parse_grand_table(html)
+    assert_fresh(date, "Grand SuperRich 官方")
+    return ok_record(GRAND_URL, date, "official_direct",
+                     cash_buy=rates, denomination_labels=labels)
+
+
+def reference_bot():
+    date, rates = bot_mirror(request_text(BOT_MIRROR_URL))
+    return ok_record(BOT_MIRROR_URL, date, "third_party_mirror",
+                     timestamp_type="underlying_bank_quote", cash_sell=rates)
+
+
+def reference_grand():
+    date, rates, labels = grand_mirror(request_text(GRAND_MIRROR_URL))
+    return ok_record(GRAND_MIRROR_URL, date, "third_party_mirror",
+                     timestamp_type="mirror_fetch_age_estimate",
+                     cash_buy=rates, denomination_labels=labels)
 
 
 def collect():
-    bot_rates, bot_date, bot_source, bot_mode = load_bot_rates()
-    grand_rates, grand_date, denominations, grand_source, grand_mode = load_grand_rates()
-
-    return {
-        "schema_version": 1,
-        "providers": {
-            "bot": {
-                "source": bot_source,
-                "origin": BOT_URL,
-                "retrieval": bot_mode,
-                "quoted_at": bot_date.isoformat(),
-                "cash_sell": bot_rates,
-            },
-            "grand_superrich": {
-                "source": grand_source,
-                "origin": GRAND_URL,
-                "retrieval": grand_mode,
-                "quoted_at": grand_date.isoformat(),
-                "cash_buy": grand_rates,
-                "denomination_labels": denominations,
-            },
-        },
+    # All four fetches are independent. No fallback is permitted within official.
+    official = {
+        "bot": attempt(official_bot, BOT_URL, "BOT_OFFICIAL"),
+        "grand_superrich": attempt(official_grand, GRAND_URL, "GRAND_OFFICIAL"),
     }
+    reference = {
+        "bot": attempt(reference_bot, BOT_MIRROR_URL, "BOT_REFERENCE"),
+        "grand_superrich": attempt(reference_grand, GRAND_MIRROR_URL, "GRAND_REFERENCE"),
+    }
+    return {"schema_version": 2,
+            "checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "official": official, "reference": reference}
 
 
 def self_test():
-    csv_fixture = (
-        "幣別,匯率,現金,即期,遠期10天,遠期30天,遠期60天,遠期90天,"
-        "遠期120天,遠期150天,遠期180天,匯率,現金,即期\n"
-        + "\n".join(
-            f"{cc},0,0,0,0,0,0,0,0,0,0,0,{v},0"
-            for cc, v in [("USD", 32.7), ("EUR", 37.0), ("JPY", 0.21),
-                          ("KRW", 0.026), ("CNY", 4.95)]
-        )
-    )
-    assert bot_cash_sell(csv_fixture)["JPY"] == 0.21
-    assert bot_quote_timestamp(
-        "<span>牌價最新掛牌時間：2026/10/22 09:08</span>"
-    ).hour == 9
-    html_fixture = """<div>Last updated exchange rate: October 22, 2026 - 11:45:12</div>
-      <table><tr><th>Country</th><th>Currency</th><th>Buying Rate</th><th>Selling Rate</th></tr>
-      <tr><td>USA</td><td>USD 100</td><td>33.5</td><td>33.6</td></tr>
-      <tr><td>European Union</td><td>EUR 500-100</td><td>38.0</td><td>38.1</td></tr>
-      <tr><td>Japan</td><td>JPY 10000 - 5000</td><td>0.2120</td><td>0.2130</td></tr>
-      <tr><td>Korea</td><td>KRW</td><td>0.025</td><td>0.026</td></tr>
-      <tr><td>China</td><td>CNY 100</td><td>5.02</td><td>5.04</td></tr>
-      <tr><td>Taiwan</td><td>TWD</td><td>1.03</td><td>1.04</td></tr></table>"""
-    vals, dt, _ = grand_cash_buy(html_fixture)
-    assert len(vals) == 6 and vals["CNY"] == 5.02
-    assert dt.hour == 11 and dt.tzinfo == BANGKOK
-    mirror_fixture = {
-        "source": "Taiwan Bank (臺灣銀行牌告匯率)",
-        "updateTime": "2026/10/22 09:08:00",
-        "details": {cc: {"cash": {"sell": v}} for cc, v in [
-            ("USD", 32.7), ("EUR", 37.0), ("JPY", 0.21),
-            ("KRW", 0.026), ("CNY", 4.95)]}
-    }
-    # Unit parser test avoids wall-clock validation of an old fixture.
-    assert "2026/10/22" in mirror_fixture["updateTime"]
-    grand_mirror_fixture = """<div>Grand Super Rich 2m ago Updated</div>
-       <table><tr><td>USD US Dollar</td><td>100</td><td>33.57</td><td>33.64</td></tr>
-       <tr><td>EUR Euro</td><td>500-100</td><td>37.65</td><td>37.80</td></tr>
-       <tr><td>JPY Japanese Yen</td><td>10000-5000</td><td>0.2125</td><td>0.2140</td></tr>
-       <tr><td>KRW South Korean Won</td><td>*</td><td>0.0252</td><td>0.0254</td></tr>
-       <tr><td>CNY Chinese Yuan</td><td>100</td><td>5.04</td><td>5.07</td></tr>
-       <tr><td>TWD Taiwan Dollar</td><td>*</td><td>1.03</td><td>1.04</td></tr></table>"""
-    mv, _, _ = grand_mirror_rates(grand_mirror_fixture)
-    assert mv["USD"] == 33.57 and mv["TWD"] == 1.03
-
-    print("Offline parser tests passed")
+    assert banknote_match("USD", "USD 100")
+    assert not banknote_match("USD", "USD 50")
+    assert banknote_match("EUR", "EUR 500-100")
+    assert not banknote_match("EUR", "EUR 50")
+    assert banknote_match("JPY", "JPY 10000 - 5000")
+    assert not banknote_match("JPY", "JPY 1000")
+    assert banknote_match("KRW", "KRW") and not banknote_match("KRW", "KRW 1000")
+    assert banknote_match("CNY", "CNY 100") and not banknote_match("CNY", "CNY 50")
+    table = """<table>
+    <tr><td>USA</td><td>USD 50</td><td>33.12</td><td>33.19</td></tr>
+    <tr><td>USA</td><td>USD 100</td><td>33.67</td><td>33.77</td></tr>
+    <tr><td>Europe</td><td>EUR 500-100</td><td>37.55</td><td>37.75</td></tr>
+    <tr><td>Japan</td><td>JPY 10000 - 5000</td><td>0.2135</td><td>0.2150</td></tr>
+    <tr><td>Korea</td><td>KRW</td><td>0.0254</td><td>0.0256</td></tr>
+    <tr><td>Korea</td><td>KRW 1000</td><td>0.0244</td><td>0.0250</td></tr>
+    <tr><td>China</td><td>CNY 100</td><td>5.04</td><td>5.07</td></tr>
+    <tr><td>Taiwan</td><td>TWD</td><td>1.03</td><td>1.04</td></tr></table>"""
+    rates, denoms = parse_grand_table(table)
+    assert rates["USD"] == 33.67 and rates["KRW"] == 0.0254
+    assert denoms["JPY"] == "JPY 10000-5000"
+    bot_html = """<span>牌價最新掛牌時間：2026/10/27 16:22</span><table>""" + "".join(
+        f'<tr><td>{code}</td><td class="rate-content-cash">1</td>'
+        f'<td class="rate-content-cash">{val}</td></tr>'
+        for code,val in (("USD",32.8),("EUR",36.9),("JPY",.2099),("KRW",.0268),("CNY",4.94))
+    ) + "</table>"
+    assert parse_bot_timestamp(bot_html).hour == 16
+    assert parse_bot_html(bot_html)["USD"] == 32.8
+    assert failure_record(BOT_URL, ValueError("blocked"))["status"] == "failed"
+    print("Offline source-separation, currency, banknote and timestamp tests passed")
 
 
 def main():
@@ -327,38 +344,42 @@ def main():
         previous = json.loads(OUT.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         pass
-    # Do not regress to an older quotation just because a mirror is lagging.
-    # Either source going backwards would make the combined comparison misleading.
-    if previous and isinstance(previous.get("providers"), dict):
-        for provider in ("bot", "grand_superrich"):
-            try:
-                old_time = datetime.fromisoformat(
-                    previous["providers"][provider]["quoted_at"]
-                ).astimezone(timezone.utc)
-                new_time = datetime.fromisoformat(
-                    payload["providers"][provider]["quoted_at"]
-                ).astimezone(timezone.utc)
-            except (KeyError, TypeError, ValueError) as err:
-                raise ValueError("Cannot compare quotation timestamps") from err
-            if new_time < old_time:
-                print(f"Skipping update: {provider} source went backwards "
-                      f"({new_time.isoformat()} < {old_time.isoformat()})")
-                return
-    if previous and previous.get("providers") == payload["providers"]:
-        print("No quotation changes; no file write")
-        return
-    payload["fetched_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    # Do not lose a last-known official/referenced quote: archive only as
+    # explicit *historical*, never as today's status or current main calculation.
+    if previous and previous.get("schema_version") == 2:
+        for group in ("official", "reference"):
+            for provider in ("bot", "grand_superrich"):
+                prior = previous.get(group, {}).get(provider, {})
+                rec = payload[group][provider]
+                if rec["status"] == "failed" and prior.get("status") == "ok":
+                    rec["last_successful"] = {
+                        k: prior[k] for k in ("quoted_at", "source", "cash_sell",
+                                             "cash_buy", "denomination_labels")
+                        if k in prior
+                    }
+                elif rec["status"] == "failed" and prior.get("last_successful"):
+                    rec["last_successful"] = prior["last_successful"]
+                elif rec["status"] == "ok" and prior.get("status") == "ok":
+                    # Do not let a lagging site overwrite newer quote value.
+                    if datetime.fromisoformat(rec["quoted_at"]) < datetime.fromisoformat(prior["quoted_at"]):
+                        print(f"{group}/{provider}: older quote, mark failed; preserve historical last-successful")
+                        payload[group][provider] = failure_record(rec["source"],
+                            "取得的牌告時間早於先前記錄，不可視為最新官方報價")
+                        payload[group][provider]["last_successful"] = {
+                            k: prior[k] for k in ("quoted_at", "source", "cash_sell",
+                                                 "cash_buy", "denomination_labels") if k in prior
+                        }
     temp = OUT.with_suffix(".json.tmp")
     temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.replace(temp, OUT)
-    print("Updated rates.json. BOT:",
-          payload["providers"]["bot"]["quoted_at"],
-          "Grand:", payload["providers"]["grand_superrich"]["quoted_at"])
+    print("Saved separately attributed statuses:", "official",
+          {k:v["status"] for k,v in payload["official"].items()}, "reference",
+          {k:v["status"] for k,v in payload["reference"].items()})
 
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print("RATE UPDATE FAILED (previous published data untouched):", exc, file=sys.stderr)
+        print("DATA STATUS UPDATE FAILED; existing snapshot untouched:", exc, file=sys.stderr)
         sys.exit(1)
