@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "checked_at": "2026-10-27T08:53:08+00:00",
+  "checked_at": "2026-10-27T08:54:18+00:00",
   "official": {
     "bot": {
       "status": "failed",
@@ -32,7 +32,7 @@
       "status": "ok",
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
       "retrieval": "third_party_mirror",
-      "quoted_at": "2026-10-27T15:51:08.163924+07:00",
+      "quoted_at": "2026-10-27T15:52:18.783708+07:00",
       "timestamp_type": "mirror_fetch_age_estimate",
       "cash_buy": {
         "CNY": 5.04,
