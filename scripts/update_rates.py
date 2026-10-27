@@ -271,12 +271,28 @@ def official_bot():
 
 
 def official_grand():
-    html = request_text(GRAND_URL)
-    date = parse_grand_timestamp(html)
-    rates, labels = parse_grand_table(html)
-    assert_fresh(date, "Grand SuperRich 官方")
-    return ok_record(GRAND_URL, date, "official_direct",
-                     cash_buy=rates, denomination_labels=labels)
+    # Two pages on the Grand SuperRich official domain; neither is a mirror.
+    errors = []
+    for url in (GRAND_URL, "https://www.grandsuperrich.com/index.php?languageID=49"):
+        try:
+            html = request_text(url)
+            date = parse_grand_timestamp(html)
+            try:
+                rates, labels = parse_grand_table(html)
+            except ValueError:
+                soup = BeautifulSoup(html, "html.parser")
+                sample = [tr.get_text(" ", strip=True)[:145]
+                          for tr in soup.select("tr")[:6]]
+                print("Grand official HTML diagnostics:",
+                      "rows=", len(soup.select("tr")),
+                      "examples=", repr(sample), file=sys.stderr)
+                raise
+            assert_fresh(date, "Grand SuperRich 官方")
+            return ok_record(url, date, "official_direct",
+                             cash_buy=rates, denomination_labels=labels)
+        except Exception as ex:
+            errors.append(str(ex)[:140])
+    raise ValueError("；".join(errors))
 
 
 def reference_bot():
