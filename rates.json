@@ -5,37 +5,37 @@
       "source": "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json",
       "origin": "https://rate.bot.com.tw/xrt",
       "retrieval": "independent_mirror",
-      "quoted_at": "2026-10-27T00:57:38+08:00",
+      "quoted_at": "2026-10-27T13:43:08+08:00",
       "cash_sell": {
-        "USD": 32.775,
-        "EUR": 36.89,
-        "JPY": 0.21,
-        "KRW": 0.02668,
-        "CNY": 4.94
+        "USD": 32.8,
+        "EUR": 36.85,
+        "JPY": 0.2099,
+        "KRW": 0.02674,
+        "CNY": 4.944
       }
     },
     "grand_superrich": {
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
       "origin": "https://www.grandsuperrich.com/rate.php",
       "retrieval": "independent_mirror",
-      "quoted_at": "2026-10-27T02:20:28.739997+07:00",
+      "quoted_at": "2026-10-27T13:15:31.163425+07:00",
       "cash_buy": {
         "CNY": 5.04,
-        "EUR": 37.75,
-        "JPY": 0.2145,
-        "KRW": 0.0254,
+        "EUR": 37.55,
+        "JPY": 0.2135,
+        "KRW": 0.0255,
         "TWD": 1.03,
-        "USD": 33.73
+        "USD": 33.66
       },
       "denomination_labels": {
         "CNY": "CNY Chinese Yuan 100 5.04 5.07",
-        "EUR": "EUR Euro 500-100 37.75 37.90",
-        "JPY": "JPY Japanese Yen 1000 0.2145 0.2160",
-        "KRW": "KRW South Korean Won * 0.0254 0.0256",
+        "EUR": "EUR Euro 500-100 37.55 37.70",
+        "JPY": "JPY Japanese Yen 1000 0.2135 0.2150",
+        "KRW": "KRW South Korean Won * 0.0255 0.0257",
         "TWD": "TWD Taiwan Dollar * 1.03 1.04",
-        "USD": "USD US Dollar 100 33.73 33.79"
+        "USD": "USD US Dollar 100 33.66 33.72"
       }
     }
   },
-  "fetched_at": "2026-10-26T19:22:28+00:00"
+  "fetched_at": "2026-10-27T06:17:31+00:00"
 }
