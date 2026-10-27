@@ -247,9 +247,19 @@ function exportText(){
 }
 $("#copy").addEventListener("click",async()=>{const output=exportText();if(!output)return;
  try{await navigator.clipboard.writeText(output);$("#feedback").textContent="已複製比較結果";}catch(e){$("#feedback").textContent="無法複製，請改用匯出 CSV";}});
-$("#exportCsv").addEventListener("click",()=>{const output=exportText();if(!output)return;
- const blob=new Blob(["\ufeff"+output],{type:"text/plain;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");
- a.href=url;a.download="泰銖換匯比較_"+new Date().toISOString().slice(0,10)+".txt";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+$("#exportCsv").addEventListener("click",()=>{
+ const selected=mode==="manual"?manualRates:validPair(loaded?.official)?getRates(loaded.official):null;
+ if(!selected)return;
+ const data=[
+   ["報價類型","排名","路線","幣別","指定紙鈔面額","台銀現鈔賣出 TWD","SuperRich 現鈔買入 THB","台幣本金","額外成本 TWD","可得泰銖"],
+   ...rows(selected).map((r,i)=>[mode==="manual"?"手動輸入（非官方）":"官網直接取得",
+     i+1,r.name,r.code,r.denom,r.bank??"",r.super,amount,r.code==="TWD"?0:fee,r.got.toFixed(2)])
+ ];
+ const csv="\ufeff"+data.map(row=>row.map(value=>'"'+String(value).replace(/"/g,'""')+'"').join(",")).join("\r\n");
+ const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="泰銖換匯比較_"+new Date().toISOString().slice(0,10)+".csv";
+ a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 renderMain();loadLatest();
 })();
