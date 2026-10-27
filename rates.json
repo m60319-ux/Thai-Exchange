@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "checked_at": "2026-10-27T08:57:41+00:00",
+  "checked_at": "2026-10-27T13:13:13+00:00",
   "official": {
     "bot": {
       "status": "failed",
@@ -11,9 +11,9 @@
       "status": "ok",
       "source": "https://www.grandsuperrich.com/rate.php",
       "retrieval": "official_direct",
-      "quoted_at": "2026-10-27T15:44:40+07:00",
+      "quoted_at": "2026-10-27T16:34:17+07:00",
       "cash_buy": {
-        "USD": 33.69,
+        "USD": 33.7,
         "EUR": 37.55,
         "JPY": 0.2135,
         "TWD": 1.03,
@@ -35,21 +35,21 @@
       "status": "ok",
       "source": "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json",
       "retrieval": "third_party_mirror",
-      "quoted_at": "2026-10-27T13:43:08+08:00",
+      "quoted_at": "2026-10-27T19:04:04+08:00",
       "timestamp_type": "underlying_bank_quote",
       "cash_sell": {
-        "USD": 32.8,
-        "EUR": 36.85,
-        "JPY": 0.2099,
-        "KRW": 0.02674,
-        "CNY": 4.944
+        "USD": 32.725,
+        "EUR": 36.72,
+        "JPY": 0.2095,
+        "KRW": 0.02661,
+        "CNY": 4.934
       }
     },
     "grand_superrich": {
       "status": "ok",
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
       "retrieval": "third_party_mirror",
-      "quoted_at": "2026-10-27T15:55:41.205791+07:00",
+      "quoted_at": "2026-10-27T20:11:13.041555+07:00",
       "timestamp_type": "mirror_fetch_age_estimate",
       "cash_buy": {
         "CNY": 5.04,
@@ -57,7 +57,7 @@
         "JPY": 0.2135,
         "KRW": 0.0255,
         "TWD": 1.03,
-        "USD": 33.69
+        "USD": 33.7
       },
       "denomination_labels": {
         "CNY": "CNY 100",
