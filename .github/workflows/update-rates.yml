@@ -10,6 +10,7 @@ on:
     paths:
       - ".github/workflows/update-rates.yml"
       - "scripts/update_rates.py"
+      - "index.html"
 
 permissions:
   contents: write
@@ -33,15 +34,36 @@ jobs:
         run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.14.2
       - name: Test quote parsing using offline fixtures
         run: python scripts/update_rates.py --self-test
-      - name: Fetch and validate both official sources
+      - name: Check inline JavaScript syntax and required source-status elements
+        run: |
+          python - <<'PY'
+          import re
+          import subprocess
+          from pathlib import Path
+          from bs4 import BeautifulSoup
+          page = Path("index.html").read_text(encoding="utf-8")
+          ids = {element.get("id") for element in BeautifulSoup(page, "html.parser").select("[id]")}
+          required = {"officialCards", "referenceCards", "mirrorContent",
+                      "officialToggle", "manualToggle", "rateBody", "bars",
+                      "reloadRates", "historyCurrency", "historyPeriods"}
+          assert required <= ids, "Missing required controls: " + str(required - ids)
+          scripts = re.findall(r"<script\b[^>]*>(.*?)</script>", page, re.S | re.I)
+          assert len(scripts) == 2, "Expected main UI and history chart scripts"
+          for i, script in enumerate(scripts):
+              target = Path("/tmp/thai-exchange-script-" + str(i) + ".js")
+              target.write_text(script, encoding="utf-8")
+              subprocess.run(["node", "--check", str(target)], check=True)
+          print("Frontend JavaScript syntax and required UI elements verified.")
+          PY
+      - name: Check official and third-party reference sources independently
         run: python scripts/update_rates.py
-      - name: Publish valid rate snapshot only when changed
+      - name: Publish attributed source status and values only when changed
         run: |
           if [[ -n "$(git status --porcelain -- rates.json)" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add rates.json
-            git commit -m "Update verified BOT and Grand SuperRich cash quotations"
+            git commit -m "Check official cash quotes and separate third-party reference statuses"
             git push
           else
             echo "No new official quotations, nothing to commit."
