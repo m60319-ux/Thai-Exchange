@@ -91,7 +91,7 @@ async function runCase(label,officialAvailable,referenceAvailable){
     assert.equal(get('#referenceToggle').getAttribute('aria-pressed'),'false');
   }
   get('#manualToggle').click();
-  assert.ok(get('#rateBody input').length>=10,label+': editable manual quote inputs');
+  assert.ok(d.querySelectorAll('#rateBody input').length>=10,label+': editable manual quote inputs');
   assert.ok(get('#primaryRankingSource').textContent.includes('手動設定'),label+': manual provenance');
   get('#amount').value='200000';
   get('#amount').dispatchEvent(new dom.window.Event('input',{bubbles:true}));
