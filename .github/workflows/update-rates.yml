@@ -11,6 +11,7 @@ on:
       - ".github/workflows/update-rates.yml"
       - "scripts/update_rates.py"
       - "index.html"
+      - "tests/browser_smoke.cjs"
 
 permissions:
   contents: write
@@ -43,7 +44,7 @@ jobs:
           from bs4 import BeautifulSoup
           page = Path("index.html").read_text(encoding="utf-8")
           ids = {element.get("id") for element in BeautifulSoup(page, "html.parser").select("[id]")}
-          required = {"officialCards", "referenceCards", "mirrorContent",
+          required = {"officialCards", "referenceCards", "mirrorContent", "referenceToggle",
                       "officialToggle", "manualToggle", "rateBody", "bars",
                       "reloadRates", "historyCurrency", "historyPeriods"}
           assert required <= ids, "Missing required controls: " + str(required - ids)
@@ -55,6 +56,10 @@ jobs:
               subprocess.run(["node", "--check", str(target)], check=True)
           print("Frontend JavaScript syntax and required UI elements verified.")
           PY
+      - name: Install simulated browser test runtime
+        run: npm install --no-save --no-package-lock --ignore-scripts jsdom@26.1.0
+      - name: Browser functional smoke tests (official / reference / manual / trend)
+        run: node tests/browser_smoke.cjs
       - name: Check official and third-party reference sources independently
         run: python scripts/update_rates.py
       - name: Publish attributed source status and values only when changed
