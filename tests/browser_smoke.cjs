@@ -95,7 +95,7 @@ async function runCase(label,officialAvailable,referenceAvailable){
   assert.ok(get('#primaryRankingSource').textContent.includes('手動設定'),label+': manual provenance');
   get('#amount').value='200000';
   get('#amount').dispatchEvent(new dom.window.Event('input',{bubbles:true}));
-  assert.ok(get('#bestAmount').textContent.includes('206,000'),label+': amount recalculates');
+  assert.ok(get('#bestAmount').textContent.includes('205,000'),label+': amount recalculates from manual rates');
   get('#historyPeriods [data-days="7"]').click();
   await tick();
   assert.ok(get('#chartOutput svg'),label+': 7-day chart still renders');
