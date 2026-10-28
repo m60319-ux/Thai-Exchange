@@ -33,16 +33,30 @@
 .rate-readonly{font-weight:700;white-space:nowrap}
 .negative-msg{font-size:12px;color:#9c593a}
 @media(max-width:760px){.source-grid{grid-template-columns:1fr}.source-box{padding:12px}.mirror-table{min-width:550px}}
+
+/* Main display always makes quotation provenance explicit. */
+.metrics.reference-mode .metric.best{background:linear-gradient(135deg,#506579,#273d56);border-color:#617991}
+.metrics.reference-mode .metric.best .note{color:#d4e2eb}
+.metrics.reference-mode .metric.best .overline{color:#c8d8e8}
+.status-line{font-size:12px;color:#6b7581;line-height:1.6;margin-top:7px}
+.data-label{display:inline-block;font-weight:750;font-size:11px;letter-spacing:.01em;border-radius:7px;padding:3px 8px;background:#e4edf5;color:#304c6e;margin-right:5px}
+.data-label.official{background:#dff5ea;color:#096a50}
+.data-label.manual{background:#f0f0f0;color:#545454}
+#bestFootnote,#directSourceNote{line-height:1.6}
+.source-box .source-desc a{word-break:break-all}
+
 </style>
 </head>
 <body>
 <header class="mast"><div class="wrap"><div class="nav"><div class="brand"><div class="logo">฿</div><span>THB Exchange Lab</span></div><span class="pill">臺銀 × Grand SuperRich</span></div><h1>換泰銖，哪條路最划算？</h1><p>比較台幣直換，以及先在台灣銀行換成美元、歐元、日圓、韓元、人民幣後，再到泰國 Grand SuperRich 兌換泰銖的實得金額。</p></div></header>
 <main class="wrap workspace">
 <section class="card"><div class="section-head"><h2>換匯試算</h2><span class="status"><span class="dot"></span><span id="snapshotLabel">檢查官方牌告資料中…</span></span></div><div class="official-alert" id="officialUpdateBanner" role="status" aria-live="polite">正在檢查 GitHub 上一次成功驗證的官方現鈔牌告…</div><div class="setup"><div><label for="amount" class="field-label">預計兌換的台幣金額</label><div class="amount-shell"><span class="prefix">NT$</span><input id="amount" type="number" min="0" max="100000000000" value="100000" step="1000" inputmode="decimal" aria-label="預計兌換的台幣金額" /></div><div class="quick" id="quick"><button type="button" data-amount="10000">1 萬</button><button type="button" data-amount="30000">3 萬</button><button type="button" data-amount="50000">5 萬</button><button type="button" data-amount="100000">10 萬</button><button type="button" data-amount="200000">20 萬</button></div></div><div class="fee"><label for="fee" class="field-label">換匯／提領額外成本（台幣）</label><input id="fee" type="number" min="0" max="100000000" step="10" value="0" inputmode="decimal" /><p class="tips">僅從「台銀先換外幣」各路線的本金扣除；直接帶台幣赴 SuperRich 不扣這筆費用。</p></div></div></section>
-<section class="card source-card" aria-labelledby="officialHeader"><div class="section-head"><div><h2 id="officialHeader">官方網站牌告狀態</h2><div class="sub">僅官方網站直接取得且能核實時間、欄位及紙鈔面額的資料，才可用於官方主排名。</div></div><button class="secondary" id="reloadRates" type="button">重新讀取</button></div><div id="officialCards" class="source-grid"></div><p class="source-note" id="checkTime"></p></section>
-<section class="metrics" aria-live="polite"><div class="metric best"><div class="overline">最佳換匯路線</div><div class="main" id="bestName">—</div><div class="route-label" id="bestAmount">—</div><div class="note">已考慮設定的額外成本</div></div><div class="metric"><div class="overline">相較台幣直接換，多得</div><div class="main" id="advantage">—</div><div class="note" id="advPct">—</div></div><div class="metric"><div class="overline">台幣直接換可得</div><div class="main" id="directAmount">—</div><div class="note">Grand SuperRich TWD 買入價</div></div></section>
-<section class="card table-card"><div class="section-head"><div><h2>六條換匯路線排名</h2><div class="sub">按可取得的泰銖由多至少排序；數字會隨金額與匯率即時重新計算</div></div><button class="secondary" id="copy" type="button">複製比較結果</button></div><div id="bars" class="bar-list"></div></section>
+<section class="card source-card" aria-labelledby="officialHeader"><div class="section-head"><div><h2 id="officialHeader">官方網站牌告狀態</h2><div class="sub">僅官方網站直接取得且能核實時間、欄位及紙鈔面額的資料，才可用於官方主排名。</div></div><button class="secondary" id="reloadRates" type="button">重新讀取已發布資料</button></div><div id="officialCards" class="source-grid"></div><p class="source-note" id="checkTime"></p></section>
+<section class="metrics" aria-live="polite"><div class="metric best"><div class="overline">最佳換匯路線</div><div class="main" id="bestName">—</div><div class="route-label" id="bestAmount">—</div><div class="note" id="bestFootnote">已考慮設定的額外成本</div></div><div class="metric"><div class="overline">相較台幣直接換，多得</div><div class="main" id="advantage">—</div><div class="note" id="advPct">—</div></div><div class="metric"><div class="overline">台幣直接換可得</div><div class="main" id="directAmount">—</div><div class="note" id="directSourceNote">Grand SuperRich TWD 買入價</div></div></section>
+<section class="card table-card"><div class="section-head"><div><h2>六條換匯路線排名</h2><div class="sub" id="primaryRankingSource">等待載入資料來源；官方取得失敗時，可清楚標示並顯示第三方參考試算。</div></div><button class="secondary" id="copy" type="button">複製比較結果</button></div><div id="bars" class="bar-list"></div></section>
 
+<section class="card table-card"><div class="section-head"><div><h2>匯率資料與設定</h2><div class="sub">官方牌告只用官方來源；手動試算與第三方鏡像均分開標示</div></div><button class="secondary" type="button" id="reset">手動模式：還原初始匯率</button></div><div class="tools" style="margin-bottom:15px"><span class="status" id="rateTableStatus"><span class="dot"></span>備援初始值：2026/10/19；連線成功時自動取代</span><div class="actions"><a href="https://rate.bot.com.tw/xrt/" target="_blank" rel="noopener noreferrer">開啟台銀牌告 ↗</a><a href="https://www.grandsuperrich.com/" target="_blank" rel="noopener noreferrer">開啟 SuperRich ↗</a></div></div><div class="rate-modes"><button type="button" id="officialToggle" aria-pressed="true">官方牌告</button><button type="button" id="referenceToggle" aria-pressed="false">第三方參考試算</button><button type="button" id="manualToggle" aria-pressed="false">手動輸入試算</button><span id="modeStatus" class="sub">若官方任一來源失敗，主排名暫不計算。</span></div><div class="tbl-scroll"><table class="rate-table"><thead><tr><th>幣別</th><th>台銀現鈔賣出<br><span class="mini">台幣 / 1 單位外幣</span></th><th>Grand SuperRich 買入<br><span class="mini">泰銖 / 1 單位外幣</span></th><th>有效換算率<br><span class="mini">泰銖 / 1 台幣</span></th></tr></thead><tbody id="rateBody"></tbody></table></div><div id="feedback" role="status" aria-live="polite"></div><div class="top-gap tools"><div class="caption">手動模式才可編輯；手動數值儲存在本裝置，不是官方牌告。</div><button class="primary" id="exportCsv" type="button">匯出 CSV 比較表 ↓</button></div><ul class="note-list"><li><b>台銀「現鈔賣出」</b>：你用台幣向銀行買外幣現金；不是即期匯率。</li><li><b>SuperRich「買入」</b>：你把外幣現金交給換匯店，換匯店買入外幣並給你泰銖。</li><li>美元限 100 美元鈔、歐元 100–500 歐元鈔、日圓 5,000–10,000 日圓鈔、人民幣限 100 元鈔、韓元採非 1,000 元小鈔的牌告；實際不同面額可能有價差。</li><li>本工具採比例換算，未模擬整張紙鈔、找零與門市庫存；實際可換金額應以臨櫃確認為準。</li><li>GitHub Actions 會分別嘗試官方與第三方來源。官方失敗時顯示「官方取得失敗」，不以鏡像取代官方牌告；第三方數字在下方獨立參考區。</li></ul></section>
+<section class="card table-card mirror-section" aria-labelledby="referenceTitle"><div class="section-head"><div><h2 id="referenceTitle">第三方牌告轉載｜僅供參考</h2><div class="sub">第三方轉載不會冒充官方牌告。官方無法讀取時，上方會預設顯示清楚標示的參考排名。</div></div></div><div class="source-grid" id="referenceCards"></div><div id="mirrorContent" class="top-gap"><p class="sub">正在載入第三方參考資料…</p></div><p class="source-note">台銀鏡像：HaoRate；Grand SuperRich 鏡像：RuamThai。RuamThai 時間是抓取時間推算，不等於 Grand SuperRich 官方掛牌時間。鏡像價格可能與官網不同。</p></section>
 <section class="card history-card" id="historySection" aria-labelledby="trend-title">
  <div class="section-head history-head"><div><h2 id="trend-title">近期匯率波動圖</h2><div class="sub">比較外幣兌泰銖的市場參考匯率；可切換幣別與觀察期間</div></div><button class="secondary" id="refreshHistory" type="button">↻ 重新載入</button></div>
  <div class="history-controls">
@@ -55,8 +69,6 @@
  <div class="trend-footer"><span class="sub" id="trendSource">歷史資料來源：<a href="https://frankfurter.dev/" target="_blank" rel="noopener noreferrer">Frankfurter 市場參考匯率</a>（非 SuperRich 現鈔歷史牌告）。圖表需網路連線，資料通常按交易日更新；休市日可能沒有新點。</span><button id="downloadHistory" class="secondary" type="button" disabled>下載歷史 CSV ↓</button></div>
  <div class="footer-note" style="margin-bottom:0"><b>提醒：</b>趨勢圖是跨幣別市場中間參考匯率，<b>不含台銀與 SuperRich 現鈔買賣價差</b>。上方的最佳換匯路線依您填寫的兩家牌告計算，不能用歷史曲線替代現金換匯收益。</div>
 </section>
-<section class="card table-card"><div class="section-head"><div><h2>匯率資料與設定</h2><div class="sub">官方牌告只用官方來源；手動試算與第三方鏡像均分開標示</div></div><button class="secondary" type="button" id="reset">手動模式：還原初始匯率</button></div><div class="tools" style="margin-bottom:15px"><span class="status" id="rateTableStatus"><span class="dot"></span>備援初始值：2026/10/19；連線成功時自動取代</span><div class="actions"><a href="https://rate.bot.com.tw/xrt/" target="_blank" rel="noopener noreferrer">開啟台銀牌告 ↗</a><a href="https://www.grandsuperrich.com/" target="_blank" rel="noopener noreferrer">開啟 SuperRich ↗</a></div></div><div class="rate-modes"><button type="button" id="officialToggle" aria-pressed="true">官方資料試算</button><button type="button" id="manualToggle" aria-pressed="false">手動輸入試算</button><span id="modeStatus" class="sub">若官方任一來源失敗，主排名暫不計算。</span></div><div class="tbl-scroll"><table class="rate-table"><thead><tr><th>幣別</th><th>台銀現鈔賣出<br><span class="mini">台幣 / 1 單位外幣</span></th><th>Grand SuperRich 買入<br><span class="mini">泰銖 / 1 單位外幣</span></th><th>有效換算率<br><span class="mini">泰銖 / 1 台幣</span></th></tr></thead><tbody id="rateBody"></tbody></table></div><div id="feedback" role="status" aria-live="polite"></div><div class="top-gap tools"><div class="caption">手動模式才可編輯；手動數值儲存在本裝置，不是官方牌告。</div><button class="primary" id="exportCsv" type="button">匯出 CSV 比較表 ↓</button></div><ul class="note-list"><li><b>台銀「現鈔賣出」</b>：你用台幣向銀行買外幣現金；不是即期匯率。</li><li><b>SuperRich「買入」</b>：你把外幣現金交給換匯店，換匯店買入外幣並給你泰銖。</li><li>美元限 100 美元鈔、歐元 100–500 歐元鈔、日圓 5,000–10,000 日圓鈔、人民幣限 100 元鈔、韓元採非 1,000 元小鈔的牌告；實際不同面額可能有價差。</li><li>本工具採比例換算，未模擬整張紙鈔、找零與門市庫存；實際可換金額應以臨櫃確認為準。</li><li>GitHub Actions 會分別嘗試官方與第三方來源。官方失敗時顯示「官方取得失敗」，不以鏡像取代官方牌告；第三方數字在下方獨立參考區。</li></ul></section>
-<section class="card table-card mirror-section" aria-labelledby="referenceTitle"><div class="section-head"><div><h2 id="referenceTitle">第三方牌告轉載｜僅供參考</h2><div class="sub">與官方價格完全分離；不會偷偷用來補足上方官方報價或主排名。</div></div></div><div class="source-grid" id="referenceCards"></div><div id="mirrorContent" class="top-gap"><p class="sub">正在載入第三方參考資料…</p></div><p class="source-note">台銀鏡像：HaoRate；Grand SuperRich 鏡像：RuamThai。RuamThai 時間是抓取時間推算，不等於 Grand SuperRich 官方掛牌時間。鏡像價格可能與官網不同。</p></section>
 <div class="footer">匯率比較工具 · 不是換匯交易平台。官方主排名僅採台銀與 Grand SuperRich 官方網站直接取得且確認時間及紙鈔面額的價格；官方資料不齊時停止官方排名，第三方轉載只顯示在獨立參考區。手動試算亦有明確標籤。</div>
 </main>
 <script>
@@ -116,7 +128,8 @@ function rows(rates){return rates.map(r=>{
 }).sort((a,b)=>b.got-a.got);}
 function renderMain(){
  const officialOk=loaded?.schema_version===2&&validPair(loaded.official);
- const activeRates=mode==="manual"?manualRates:officialOk?getRates(loaded.official):null;
+ const referenceOk=loaded?.schema_version===2&&validPair(loaded.reference);
+ const activeRates=mode==="manual"?manualRates:mode==="reference"?(referenceOk?getRates(loaded.reference):null):(officialOk?getRates(loaded.official):null);
  const result=activeRates?rows(activeRates):[];
  const copy=$("#copy"),download=$("#exportCsv");
  copy.disabled=download.disabled=!result.length;
@@ -137,17 +150,32 @@ function renderMain(){
    '</small></div></div>';
  }).join(""):'<p class="negative-msg"><strong>官方取得失敗或資料不完整，暫不提供官方換匯排名。</strong>第三方牌告僅在下方參考區顯示。如要自行輸入已核實的官方牌告，可啟用「手動輸入試算」。</p>';
  $("#officialToggle").setAttribute("aria-pressed",mode==="official"?"true":"false");
+ $("#referenceToggle").setAttribute("aria-pressed",mode==="reference"?"true":"false");
  $("#manualToggle").setAttribute("aria-pressed",mode==="manual"?"true":"false");
- const summary=mode==="manual"?"手動輸入：以下數字不是自動取得的官方報價":officialOk?"官方網站直讀：可依掛牌時間試算":"官方資料不齊：不以鏡像補足";
+ const summary=mode==="manual"?"手動模式（使用者自行設定，並非官方牌告）":
+   mode==="reference"?"第三方轉載參考試算（HaoRate + RuamThai，並非官方牌告）":
+   officialOk?"官方網站直接取得：依實際掛牌時間計算":"官方資料不齊，已停用官方排名";
+ const sourceGroup=mode==="manual"?null:mode==="reference"?loaded?.reference:loaded?.official;
+ const botTimestamp=sourceGroup?.bot?.quoted_at?time(sourceGroup.bot.quoted_at,"Asia/Taipei"):"未取得";
+ const grandTimestamp=sourceGroup?.grand_superrich?.quoted_at?time(sourceGroup.grand_superrich.quoted_at,"Asia/Bangkok"):"未取得";
+ const sourceLabel=mode==="manual"?"手動設定":
+   mode==="reference"?"第三方參考 · 非官方牌告":"官方直接取得";
+ const timeLabel=mode==="manual"?"資料來源：手動輸入（非官方）":
+   "台銀："+botTimestamp+"（台灣）；Grand SuperRich："+grandTimestamp+"（泰國）";
+ document.querySelector(".metrics").classList.toggle("reference-mode",mode==="reference");
+ $("#primaryRankingSource").innerHTML='<span class="data-label '+(mode==="manual"?"manual":mode==="official"?"official":"")+'">'+esc(sourceLabel)+'</span> '+esc(timeLabel);
+ $("#bestFootnote").textContent=sourceLabel+"；已考慮額外成本";
+ $("#directSourceNote").textContent=(mode==="reference"?"第三方轉載之 ":"")+
+   "Grand SuperRich TWD 現鈔買入價";
  $("#modeStatus").textContent=summary;
- $("#snapshotLabel").textContent=mode==="manual"?"手動模式 · 非即時":officialOk?"官方直接取得 · 依實際報價時間":"官方取得失敗 · 主排名停用";
+ $("#snapshotLabel").textContent=mode==="manual"?"手動設定 · 非官方":mode==="reference"?"第三方參考 · 非官方":officialOk?"官方直接取得 · 依報價時間":"官方取得失敗 · 不計算";
  $("#rateTableStatus").textContent=summary;
  $("#rateBody").innerHTML=ORIG.map(orig=>{
-   const off=loaded?.schema_version===2?loaded.official:null;
+   const off=loaded?.schema_version===2?(mode==="reference"?loaded.reference:loaded.official):null;
    const b=mode==="manual"?(orig.code==="TWD"?null:manualRates.find(x=>x.code===orig.code)?.bank):
-        off?.bot?.status==="ok"?off.bot.cash_sell?.[orig.code]:null;
+        valid(off?.bot)?off.bot.cash_sell?.[orig.code]:null;
    const v=mode==="manual"?manualRates.find(x=>x.code===orig.code)?.super:
-        off?.grand_superrich?.status==="ok"?off.grand_superrich.cash_buy?.[orig.code]:null;
+        valid(off?.grand_superrich)?off.grand_superrich.cash_buy?.[orig.code]:null;
    const denom=mode==="manual"?orig.denom:off?.grand_superrich?.denomination_labels?.[orig.code]||orig.denom;
    const inputs=mode==="manual";
    const bank=orig.code==="TWD"?'<span class="mini">台幣直接帶到 SuperRich</span>':
@@ -191,10 +219,13 @@ function renderSources(){
      time(loaded.checked_at,"Asia/Taipei")+"（台灣時間）。成功取得不代表兩家同時更新，換匯請以臨櫃為準。":
      "沒有可驗證的自動檢查時間。";
  const good=validPair(official);
- $("#officialUpdateBanner").className="official-alert"+(good?"":" error");
+ const referenceGood=validPair(loaded?.reference);
+ $("#officialUpdateBanner").className="official-alert"+(good?"":referenceGood?" warn":" error");
  $("#officialUpdateBanner").textContent=good?
-   "官方資料已直接取得，按下方實際報價時間計算，不使用鏡像補足。":
-   "官方取得失敗或資料不齊：主排名已暫停，不會拿第三方鏡像冒充官方價格。可在下方查看獨立第三方參考試算，或切換手動試算。";
+   "兩家官方現鈔牌告取得成功，主排名使用官方直接報價。":
+   referenceGood?
+   "台銀官方取得失敗或官方資料不完整。已切換「第三方參考試算」，來源為 HaoRate 與 RuamThai，並非官方牌告。官方報價與第三方轉載分開顯示。":
+   "官方取得失敗，第三方資料亦不完整；可切換手動模式輸入已核實的匯率。";
 }
 async function loadLatest(){
  $("#officialUpdateBanner").textContent="正在讀取 GitHub 最新的來源驗證結果…";
@@ -208,12 +239,17 @@ async function loadLatest(){
    bot:{status:"failed",error:String(e.message||e)},
    grand_superrich:{status:"failed",error:"請檢查網路連線及排程狀態"}
  },reference:{}};}
+ if(mode!=="manual"){
+   mode=validPair(loaded?.official)?"official":
+        validPair(loaded?.reference)?"reference":"official";
+ }
  renderSources();renderMain();renderReference();
 }
 $("#amount").addEventListener("input",e=>{amount=Math.min(1e12,Math.max(0,Number(e.target.value)||0));save();renderMain();renderReference();});
 $("#fee").addEventListener("input",e=>{fee=Math.min(1e10,Math.max(0,Number(e.target.value)||0));save();renderMain();renderReference();});
 $("#quick").addEventListener("click",e=>{const b=e.target.closest("[data-amount]");if(!b)return;amount=Number(b.dataset.amount);$("#amount").value=amount;save();renderMain();renderReference();});
 $("#officialToggle").addEventListener("click",()=>{mode="official";renderMain();});
+$("#referenceToggle").addEventListener("click",()=>{mode="reference";renderMain();});
 $("#manualToggle").addEventListener("click",()=>{mode="manual";renderMain();});
 $("#reset").addEventListener("click",()=>{mode="manual";manualRates=ORIG.map(x=>({...x}));save();renderMain();});
 $("#rateBody").addEventListener("input",e=>{
@@ -238,9 +274,9 @@ $("#rateBody").addEventListener("input",e=>{
 $("#rateBody").addEventListener("change",()=>{if(mode==="manual")renderMain();});
 $("#reloadRates").addEventListener("click",loadLatest);
 function exportText(){
- const available=mode==="manual"?manualRates:validPair(loaded?.official)?getRates(loaded.official):null;
+ const available=mode==="manual"?manualRates:validPair(mode==="reference"?loaded?.reference:loaded?.official)?getRates(mode==="reference"?loaded.reference:loaded.official):null;
  if(!available)return null;
- const type=mode==="manual"?"手動試算":"直接官方牌告";
+ const type=mode==="manual"?"手動試算（非官方）":mode==="reference"?"第三方鏡像試算（非官方）":"直接官方牌告";
  const result=rows(available);
  return [type+"｜投入 NT$"+money(amount)+"｜額外成本 NT$"+money(fee),
    ...result.map((r,i)=>(i+1)+". "+r.name+"：฿"+money(r.got))].join("\n");
@@ -248,11 +284,11 @@ function exportText(){
 $("#copy").addEventListener("click",async()=>{const output=exportText();if(!output)return;
  try{await navigator.clipboard.writeText(output);$("#feedback").textContent="已複製比較結果";}catch(e){$("#feedback").textContent="無法複製，請改用匯出 CSV";}});
 $("#exportCsv").addEventListener("click",()=>{
- const selected=mode==="manual"?manualRates:validPair(loaded?.official)?getRates(loaded.official):null;
+ const selected=mode==="manual"?manualRates:validPair(mode==="reference"?loaded?.reference:loaded?.official)?getRates(mode==="reference"?loaded.reference:loaded.official):null;
  if(!selected)return;
  const data=[
    ["報價類型","排名","路線","幣別","指定紙鈔面額","台銀現鈔賣出 TWD","SuperRich 現鈔買入 THB","台幣本金","額外成本 TWD","可得泰銖"],
-   ...rows(selected).map((r,i)=>[mode==="manual"?"手動輸入（非官方）":"官網直接取得",
+   ...rows(selected).map((r,i)=>[mode==="manual"?"手動輸入（非官方）":mode==="reference"?"第三方轉載（非官方）":"官網直接取得",
      i+1,r.name,r.code,r.denom,r.bank??"",r.super,amount,r.code==="TWD"?0:fee,r.got.toFixed(2)])
  ];
  const csv="\ufeff"+data.map(row=>row.map(value=>'"'+String(value).replace(/"/g,'""')+'"').join(",")).join("\r\n");
