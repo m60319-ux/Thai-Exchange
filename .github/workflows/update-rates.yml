@@ -1,4 +1,4 @@
-name: Refresh BOT and Grand SuperRich cash rates
+name: Refresh Cathay-Taishin and Grand SuperRich cash rates
 
 on:
   workflow_dispatch:
