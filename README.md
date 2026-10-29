@@ -6,16 +6,16 @@
 
 ## 官方資料和第三方鏡像嚴格分離（v2）
 
-網站由 GitHub Actions 定時檢查四個來源，結果分別存到 [rates.json](rates.json)：
+網站由 GitHub Actions 定時檢查四個來源，結果分別存到 [rates.json](rates.json)。台銀官方優先為 `https://rate.bot.com.tw/xrt?Lang=zh-TW`，FindRate 只作為第三方參考：
 
 | 分組 | 來源 | 用途 |
 | --- | --- | --- |
 | 官方 / 台灣銀行 | https://rate.bot.com.tw/xrt | 現鈔賣出（cash selling），**不是即期賣出** |
 | 官方 / Grand SuperRich | https://www.grandsuperrich.com/rate.php | 嚴格依指定紙鈔面額的現鈔買入 |
-| 第三方參考 / 台銀轉載 | https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json | **只在下方參考區顯示** |
+| 第三方參考 / 台銀轉載 | https://www.findrate.tw/bank/29/ | 僅使用**現鈔賣出**；核對頁面公布的更新時間，不是即期價 |
 | 第三方參考 / Grand SuperRich 轉載 | https://exchange.ruamthai.com/en/shop/grand-superrich | **只在下方參考區顯示** |
 
-**重要：絕對不會把第三方鏡像升格為「官方牌告」。** 官方只要有一個來源無法直接取得、缺少價格或過期，「官方牌告」模式便不會顯示排名，而是標明「官方取得失敗」。若第三方兩家資料都完整，網頁會自動切至**明確標示「第三方參考 · 非官方」**的比較模式，讓使用者仍能看到六種換匯金額及計算結果；可隨時切回官方資料檢查失敗狀態、或選擇手動輸入。
+**重要：絕對不會把第三方鏡像升格為「官方牌告」。** 官方只要有一個來源無法直接取得、缺少價格或過期，「官方牌告」模式便不會顯示排名，而是標明「官方取得失敗」。若第三方兩家資料都完整、且更新時間未過期，網頁會自動切至**明確標示「第三方參考 · 非官方」**的比較模式，讓使用者仍能看到六種換匯金額及計算結果；可隨時切回官方資料檢查失敗狀態、或選擇手動輸入。
 
 Grand SuperRich 指定紙鈔面額：
 - USD 100
@@ -54,3 +54,7 @@ GitHub Pages 使用 \`main\` 分支根目錄的 \`index.html\`。使用前務必
 ## 網頁可用性檢查
 
 每次程式更新都透過 GitHub Actions 測試 JavaScript 語法，並以模擬瀏覽器分別測試「官方資料成功」、「官方失敗、第三方資料成功」及「全部取得失敗、手動輸入」三種情境，確認六種換匯路線、金額修改和歷史圖表能運作。這項測試不能保證外部網站永遠連線成功；官網封鎖及時效資訊仍會在頁面顯示。
+
+## FindRate 來源檢查
+
+FindRate 的 `/bank/29/` 頁面提供台銀現鈔賣出價及自身的「匯率更新時間」。如果該時間距執行時已超過 120 小時，程式會標示 **第三方資料過期／無法使用**，不會冒充今天的價格；也不會沿用舊的 HaoRate 報價作為 FindRate 的資料。
