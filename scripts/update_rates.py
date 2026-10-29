@@ -483,6 +483,10 @@ def main():
             for provider in ("bot", "grand_superrich"):
                 prior = previous.get(group, {}).get(provider, {})
                 rec = payload[group][provider]
+                # A historical record from another website must never survive
+                # when the user changes the provider (HaoRate -> FindRate).
+                if prior.get("source") != rec.get("source"):
+                    prior = {}
                 if rec["status"] == "failed" and prior.get("status") == "ok":
                     rec["last_successful"] = {
                         k: prior[k] for k in ("quoted_at", "source", "cash_sell",
