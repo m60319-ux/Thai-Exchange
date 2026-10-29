@@ -130,7 +130,7 @@ async function runCase(label,officialAvailable,referenceAvailable){
   await runBankFallbackCase();
 
 async function runBankFallbackCase(){
-  const data=sampleData(false,false);
+  const data=sampleData(true,false);
   data.official.cathay={
     status:'ok',source:'https://www.cathaybk.com.tw/',quoted_at:now,
     cash_sell:{USD:32.73,EUR:36.74,JPY:.2096,CNY:4.915},
