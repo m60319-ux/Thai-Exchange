@@ -56,7 +56,7 @@
 <section class="card table-card"><div class="section-head"><div><h2>六條換匯路線排名</h2><div class="sub" id="primaryRankingSource">等待載入資料來源；官方取得失敗時，可清楚標示並顯示第三方參考試算。</div></div><button class="secondary" id="copy" type="button">複製比較結果</button></div><div id="bars" class="bar-list"></div></section>
 
 <section class="card table-card"><div class="section-head"><div><h2>匯率資料與設定</h2><div class="sub">官方牌告只用官方來源；手動試算與第三方鏡像均分開標示</div></div><button class="secondary" type="button" id="reset">手動模式：還原初始匯率</button></div><div class="tools" style="margin-bottom:15px"><span class="status" id="rateTableStatus"><span class="dot"></span>備援初始值：2026/10/19；連線成功時自動取代</span><div class="actions"><a href="https://rate.bot.com.tw/xrt/" target="_blank" rel="noopener noreferrer">開啟台銀牌告 ↗</a><a href="https://www.grandsuperrich.com/" target="_blank" rel="noopener noreferrer">開啟 SuperRich ↗</a></div></div><div class="rate-modes"><button type="button" id="officialToggle" aria-pressed="true">官方牌告</button><button type="button" id="referenceToggle" aria-pressed="false">第三方參考試算</button><button type="button" id="manualToggle" aria-pressed="false">手動輸入試算</button><span id="modeStatus" class="sub">若官方任一來源失敗，主排名暫不計算。</span></div><div class="tbl-scroll"><table class="rate-table"><thead><tr><th>幣別</th><th>台銀現鈔賣出<br><span class="mini">台幣 / 1 單位外幣</span></th><th>Grand SuperRich 買入<br><span class="mini">泰銖 / 1 單位外幣</span></th><th>有效換算率<br><span class="mini">泰銖 / 1 台幣</span></th></tr></thead><tbody id="rateBody"></tbody></table></div><div id="feedback" role="status" aria-live="polite"></div><div class="top-gap tools"><div class="caption">手動模式才可編輯；手動數值儲存在本裝置，不是官方牌告。</div><button class="primary" id="exportCsv" type="button">匯出 CSV 比較表 ↓</button></div><ul class="note-list"><li><b>台銀「現鈔賣出」</b>：你用台幣向銀行買外幣現金；不是即期匯率。</li><li><b>SuperRich「買入」</b>：你把外幣現金交給換匯店，換匯店買入外幣並給你泰銖。</li><li>美元限 100 美元鈔、歐元 100–500 歐元鈔、日圓 5,000–10,000 日圓鈔、人民幣限 100 元鈔、韓元採非 1,000 元小鈔的牌告；實際不同面額可能有價差。</li><li>本工具採比例換算，未模擬整張紙鈔、找零與門市庫存；實際可換金額應以臨櫃確認為準。</li><li>GitHub Actions 會分別嘗試官方與第三方來源。官方失敗時顯示「官方取得失敗」，不以鏡像取代官方牌告；第三方數字在下方獨立參考區。</li></ul></section>
-<section class="card table-card mirror-section" aria-labelledby="referenceTitle"><div class="section-head"><div><h2 id="referenceTitle">第三方牌告轉載｜僅供參考</h2><div class="sub">第三方轉載不會冒充官方牌告。官方無法讀取時，上方會預設顯示清楚標示的參考排名。</div></div></div><div class="source-grid" id="referenceCards"></div><div id="mirrorContent" class="top-gap"><p class="sub">正在載入第三方參考資料…</p></div><p class="source-note">台銀鏡像：HaoRate；Grand SuperRich 鏡像：RuamThai。RuamThai 時間是抓取時間推算，不等於 Grand SuperRich 官方掛牌時間。鏡像價格可能與官網不同。</p></section>
+<section class="card table-card mirror-section" aria-labelledby="referenceTitle"><div class="section-head"><div><h2 id="referenceTitle">第三方牌告轉載｜僅供參考</h2><div class="sub">第三方轉載不會冒充官方牌告。官方無法讀取時，上方會預設顯示清楚標示的參考排名。</div></div></div><div class="source-grid" id="referenceCards"></div><div id="mirrorContent" class="top-gap"><p class="sub">正在載入第三方參考資料…</p></div><p class="source-note">台銀第三方資料：FindRate（https://www.findrate.tw/bank/29/）；Grand SuperRich 鏡像：RuamThai。RuamThai 時間是抓取時間推算，不等於 Grand SuperRich 官方掛牌時間。鏡像價格可能與官網不同。</p></section>
 <section class="card history-card" id="historySection" aria-labelledby="trend-title">
  <div class="section-head history-head"><div><h2 id="trend-title">近期匯率波動圖</h2><div class="sub">比較外幣兌泰銖的市場參考匯率；可切換幣別與觀察期間</div></div><button class="secondary" id="refreshHistory" type="button">↻ 重新載入</button></div>
  <div class="history-controls">
@@ -153,7 +153,7 @@ function renderMain(){
  $("#referenceToggle").setAttribute("aria-pressed",mode==="reference"?"true":"false");
  $("#manualToggle").setAttribute("aria-pressed",mode==="manual"?"true":"false");
  const summary=mode==="manual"?"手動模式（使用者自行設定，並非官方牌告）":
-   mode==="reference"?"第三方轉載參考試算（HaoRate + RuamThai，並非官方牌告）":
+   mode==="reference"?"第三方轉載參考試算（FindRate + RuamThai，並非官方牌告）":
    officialOk?"官方網站直接取得：依實際掛牌時間計算":"官方資料不齊，已停用官方排名";
  const sourceGroup=mode==="manual"?null:mode==="reference"?loaded?.reference:loaded?.official;
  const botTimestamp=sourceGroup?.bot?.quoted_at?time(sourceGroup.bot.quoted_at,"Asia/Taipei"):"未取得";
@@ -192,7 +192,7 @@ function renderMain(){
 function providerCard(label,rec,reference=false){
  const success=valid(rec);
  const stamp=success?time(rec.quoted_at,label==="台灣銀行"?"Asia/Taipei":"Asia/Bangkok"):"無有效牌告";
- const details=success?reference?(label==="Grand SuperRich"?"第三方抓取時間推估，非官方掛牌時間":"第三方轉載之台銀報價時間"):"僅官方網站直接讀取，無第三方替代":
+ const details=success?reference?(label==="Grand SuperRich"?"第三方抓取時間推估，非官方掛牌時間":"FindRate 網站標示之臺灣銀行牌告更新時間"):"僅官方網站直接讀取，無第三方替代":
      (rec?.error||"尚未取得官方資料");
  return '<div class="source-box '+(success?"":"failed")+'"><h3>'+esc(label)+'</h3>'+
    '<span class="status-chip '+(success?"":"fail")+'">'+(success?(reference?"第三方參考可用":"官方直接取得"):(reference?"參考來源失敗":"官方取得失敗"))+'</span>'+
@@ -224,7 +224,7 @@ function renderSources(){
  $("#officialUpdateBanner").textContent=good?
    "兩家官方現鈔牌告取得成功，主排名使用官方直接報價。":
    referenceGood?
-   "台銀官方取得失敗或官方資料不完整。已切換「第三方參考試算」，來源為 HaoRate 與 RuamThai，並非官方牌告。官方報價與第三方轉載分開顯示。":
+   "台銀官方取得失敗或官方資料不完整。已切換「第三方參考試算」，來源為 FindRate 與 RuamThai，並非官方牌告。官方報價與第三方轉載分開顯示。":
    "官方取得失敗，第三方資料亦不完整；可切換手動模式輸入已核實的匯率。";
 }
 async function loadLatest(){
