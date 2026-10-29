@@ -11,34 +11,51 @@ function sampleData(officialAvailable, referenceAvailable) {
   const clone = JSON.parse(JSON.stringify(actual));
   clone.schema_version = 2;
   clone.checked_at = now;
-  delete clone.official.bank;
-  delete clone.official.cathay;
-  delete clone.official.taishin;
-  clone.official.bot = officialAvailable ? {
-    status:'ok', source:'https://rate.bot.com.tw/xrt',
-    retrieval:'official_direct', quoted_at:now,
-    cash_sell:{USD:32.75,EUR:37,JPY:.21,KRW:.0265,CNY:4.94}
-  } : {
-    status:'failed', source:'https://rate.bot.com.tw/xrt',
-    error:'台銀官網防護頁阻擋自動存取'
+  delete clone.official.bot;
+  delete clone.reference.bot;
+  const cash={USD:32.73,EUR:36.74,JPY:.2096,CNY:4.915};
+  const source='https://www.cathaybk.com.tw/';
+  const bank={
+    status:'ok',source,quoted_at:now,
+    bank_name:'國泰世華 → 台新（依幣別回退）',
+    cash_sell:cash,unsupported:['KRW'],
+    currency_sources:Object.fromEntries(
+      ['USD','EUR','JPY','CNY'].map(code=>[
+        code,{bank:'cathay',bank_name:'國泰世華銀行',source,quoted_at:now}
+      ])
+    )
   };
-  clone.official.grand_superrich = {
-    status:'ok', source:'https://www.grandsuperrich.com/rate.php',
-    retrieval:'official_direct', quoted_at:now,
+  clone.official.cathay={
+    status:'ok',source,quoted_at:now,bank_name:'國泰世華銀行',
+    cash_sell:cash,unsupported:['KRW']
+  };
+  clone.official.taishin={
+    status:'ok',source:'https://my.taishinbank.com.tw/',quoted_at:now,
+    bank_name:'台新銀行',cash_sell:{USD:32.70,EUR:36.70,JPY:.2096,CNY:4.91},
+    unsupported:['KRW']
+  };
+  clone.official.bank=(officialAvailable||referenceAvailable)
+    ? JSON.parse(JSON.stringify(bank))
+    : {status:'failed',error:'沒有可用的銀行現鈔賣出價'};
+  clone.official.grand_superrich=officialAvailable?{
+    status:'ok',source:'https://www.grandsuperrich.com/rate.php',quoted_at:now,
     cash_buy:{TWD:1.03,USD:33.7,EUR:37.6,JPY:.213,KRW:.0255,CNY:5.04},
-    denomination_labels:{TWD:'TWD',USD:'USD 100',EUR:'EUR 500-100',JPY:'JPY 10000-5000',KRW:'KRW 非小面額',CNY:'CNY 100'}
-  };
-  clone.reference.bot = referenceAvailable ? {
-    status:'ok',quoted_at:now,source:'https://reference.example/bot',
-    cash_sell:{USD:32.8,EUR:37.1,JPY:.21,KRW:.0266,CNY:4.94}
-  } : {status:'failed',error:'參考資料不可用'};
-  clone.reference.grand_superrich = referenceAvailable ? {
-    status:'ok',quoted_at:now,source:'https://reference.example/grand',
+    denomination_labels:{TWD:'TWD',USD:'USD 100',EUR:'EUR 500-100',
+      JPY:'JPY 10000-5000',KRW:'KRW 非小面額',CNY:'CNY 100'}
+  }:{status:'failed',error:'Grand SuperRich 官網無法讀取'};
+  clone.reference.bank=referenceAvailable
+    ? JSON.parse(JSON.stringify(bank))
+    : {status:'failed',error:'參考銀行資料不足'};
+  clone.reference.grand_superrich=referenceAvailable?{
+    status:'ok',quoted_at:now,
+    source:'https://exchange.ruamthai.com/en/shop/grand-superrich',
     cash_buy:{TWD:1.03,USD:33.65,EUR:37.5,JPY:.213,KRW:.0255,CNY:5.04},
-    denomination_labels:{TWD:'TWD',USD:'USD 100',EUR:'EUR 500-100',JPY:'JPY 10000-5000',KRW:'KRW 非小面額',CNY:'CNY 100'}
-  } : {status:'failed',error:'參考資料不可用'};
+    denomination_labels:{TWD:'TWD',USD:'USD 100',EUR:'EUR 500-100',
+      JPY:'JPY 10000-5000',KRW:'KRW 非小面額',CNY:'CNY 100'}
+  }:{status:'failed',error:'RuamThai 資料不足'};
   return clone;
 }
+
 function marketRows() {
   const d = ['2026-10-23','2026-10-26','2026-10-27'];
   const names = {THB:1.04,USD:.033,EUR:.027,JPY:4.8,KRW:43,CNY:.23};
@@ -107,7 +124,7 @@ async function runCase(label,officialAvailable,referenceAvailable){
   process.stdout.write('PASS: '+label+'\n');
 }
 (async()=>{
-  await runCase('Official blocked; labeled reference comparison',false,true);
+  await runCase('Grand official blocked; labeled reference comparison',false,true);
   await runCase('Official success; official comparison',true,true);
   await runCase('Both data sources failed; manual still works',false,false);
   await runBankFallbackCase();
@@ -126,7 +143,7 @@ async function runBankFallbackCase(){
   };
   data.official.bank={
     status:'ok',source:data.official.cathay.source,quoted_at:now,
-    bank_name:'台銀 → 國泰世華 → 台新（依幣別回退）',
+    bank_name:'國泰世華 → 台新（依幣別回退）',
     cash_sell:data.official.cathay.cash_sell,
     currency_sources:Object.fromEntries(
       ['USD','EUR','JPY','CNY'].map(code=>[
@@ -136,6 +153,9 @@ async function runBankFallbackCase(){
     ),
     unsupported:['KRW']
   };
+  data.official.bank.cash_sell.CNY=4.91;
+  data.official.bank.currency_sources.CNY={bank:'taishin',bank_name:'台新銀行',
+    source:data.official.taishin.source,quoted_at:now};
   const errs=[],vc=new VirtualConsole();
   vc.on('jsdomError',e=>errs.push(e.message));
   const dom=new JSDOM(html,{
@@ -155,15 +175,19 @@ async function runBankFallbackCase(){
   assert.equal(d.querySelector('#officialToggle').getAttribute('aria-pressed'),'true');
   assert.ok(d.querySelector('#bars').textContent.includes('國泰世華銀行'));
   assert.ok(d.querySelector('#primaryRankingSource').textContent.includes('國泰世華銀行'));
+  assert.ok(d.querySelector('#rateBody').textContent.includes('台新銀行'));
+  assert.ok(!html.includes('FindRate'));
+  assert.ok(!html.includes('rate.bot.com.tw'));
   assert.ok(d.querySelector('#officialCards').textContent.includes('台新銀行'));
   assert.ok(d.querySelector('#rateBody').textContent.includes('未提供現鈔賣出'));
   assert.ok(d.querySelector('#bars').textContent.includes('KRW'));
+  assert.ok(!d.body.textContent.includes('台銀'), 'removed bank should not appear');
   assert.equal(d.querySelectorAll('#bars .bar-row').length,5,
                'TWD plus four actual currency banknote offers; never fake KRW');
   assert.ok(!d.querySelector('#bars').textContent.includes('NaN'));
   assert.ok(!d.querySelector('#bars').textContent.includes('Infinity'));
   assert.ok(d.querySelector('#chartOutput svg'));
   dom.window.close();
-  process.stdout.write('PASS: BOT failed, Cathay used; Taishin visible; unsupported KRW excluded\n');
+  process.stdout.write('PASS: Cathay primary, Taishin secondary, KRW unavailable\n');
 }
 })().catch(e=>{console.error(e);process.exit(1);});
