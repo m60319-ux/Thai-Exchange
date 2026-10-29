@@ -11,6 +11,9 @@ function sampleData(officialAvailable, referenceAvailable) {
   const clone = JSON.parse(JSON.stringify(actual));
   clone.schema_version = 2;
   clone.checked_at = now;
+  delete clone.official.bank;
+  delete clone.official.cathay;
+  delete clone.official.taishin;
   clone.official.bot = officialAvailable ? {
     status:'ok', source:'https://rate.bot.com.tw/xrt',
     retrieval:'official_direct', quoted_at:now,
@@ -107,4 +110,60 @@ async function runCase(label,officialAvailable,referenceAvailable){
   await runCase('Official blocked; labeled reference comparison',false,true);
   await runCase('Official success; official comparison',true,true);
   await runCase('Both data sources failed; manual still works',false,false);
+  await runBankFallbackCase();
+
+async function runBankFallbackCase(){
+  const data=sampleData(false,false);
+  data.official.cathay={
+    status:'ok',source:'https://www.cathaybk.com.tw/',quoted_at:now,
+    cash_sell:{USD:32.73,EUR:36.74,JPY:.2096,CNY:4.915},
+    unsupported:['KRW']
+  };
+  data.official.taishin={
+    status:'ok',source:'https://my.taishinbank.com.tw/',quoted_at:now,
+    cash_sell:{USD:32.69,EUR:36.70,JPY:.2095,CNY:4.91},
+    unsupported:['KRW']
+  };
+  data.official.bank={
+    status:'ok',source:data.official.cathay.source,quoted_at:now,
+    bank_name:'台銀 → 國泰世華 → 台新（依幣別回退）',
+    cash_sell:data.official.cathay.cash_sell,
+    currency_sources:Object.fromEntries(
+      ['USD','EUR','JPY','CNY'].map(code=>[
+        code,{bank:'cathay',bank_name:'國泰世華銀行',
+              source:data.official.cathay.source,quoted_at:now}
+      ])
+    ),
+    unsupported:['KRW']
+  };
+  const errs=[],vc=new VirtualConsole();
+  vc.on('jsdomError',e=>errs.push(e.message));
+  const dom=new JSDOM(html,{
+    url:'https://m60319-ux.github.io/Thai-Exchange/',
+    runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,
+    beforeParse(win){
+      win.fetch=async path=>({
+        ok:true,status:200,
+        json:async()=>String(path).includes('rates.json')?data:marketRows()
+      });
+      win.scrollTo=()=>{};
+    }
+  });
+  await tick();
+  const d=dom.window.document;
+  assert.deepEqual(errs,[],'fallback no JS errors');
+  assert.equal(d.querySelector('#officialToggle').getAttribute('aria-pressed'),'true');
+  assert.ok(d.querySelector('#bars').textContent.includes('國泰世華銀行'));
+  assert.ok(d.querySelector('#primaryRankingSource').textContent.includes('國泰世華銀行'));
+  assert.ok(d.querySelector('#officialCards').textContent.includes('台新銀行'));
+  assert.ok(d.querySelector('#rateBody').textContent.includes('未提供現鈔賣出'));
+  assert.ok(d.querySelector('#bars').textContent.includes('KRW'));
+  assert.equal(d.querySelectorAll('#bars .bar-row').length,5,
+               'TWD plus four actual currency banknote offers; never fake KRW');
+  assert.ok(!d.querySelector('#bars').textContent.includes('NaN'));
+  assert.ok(!d.querySelector('#bars').textContent.includes('Infinity'));
+  assert.ok(d.querySelector('#chartOutput svg'));
+  dom.window.close();
+  process.stdout.write('PASS: BOT failed, Cathay used; Taishin visible; unsupported KRW excluded\n');
+}
 })().catch(e=>{console.error(e);process.exit(1);});
