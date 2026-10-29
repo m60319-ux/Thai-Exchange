@@ -648,7 +648,8 @@ def main():
     # explicit *historical*, never as today's status or current main calculation.
     if previous and previous.get("schema_version") == 2:
         for group in ("official", "reference"):
-            for provider in ("bot", "cathay", "taishin", "grand_superrich"):
+            names = ("bot", "cathay", "taishin", "grand_superrich") if group == "official" else ("bot", "grand_superrich")
+            for provider in names:
                 prior = previous.get(group, {}).get(provider, {})
                 rec = payload[group][provider]
                 # A historical record from another website must never survive
