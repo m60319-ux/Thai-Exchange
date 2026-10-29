@@ -2,7 +2,7 @@
 
 [打開換匯網頁](https://m60319-ux.github.io/Thai-Exchange/)
 
-比較六種路線：直接以台幣現鈔兌泰銖；或先向台灣銀行以 **現鈔賣出價** 購買 USD、EUR、JPY、KRW、CNY，再到 Grand SuperRich 以指定面額的 **現鈔買入價** 兌泰銖。
+比較台幣直接換泰銖及先購買 USD、EUR、JPY、KRW、CNY 的路線。臺灣銀行現鈔賣出價無法讀取時，依序改採**國泰世華銀行**、**台新銀行**的官方現鈔賣出價；再到 Grand SuperRich 按指定面額的現鈔買入價換泰銖。每個幣別顯示實際銀行來源。
 
 ## 官方資料和第三方鏡像嚴格分離（v2）
 
@@ -10,10 +10,14 @@
 
 | 分組 | 來源 | 用途 |
 | --- | --- | --- |
-| 官方 / 台灣銀行 | https://rate.bot.com.tw/xrt | 現鈔賣出（cash selling），**不是即期賣出** |
+| 官方第 1 順位 / 臺灣銀行 | https://rate.bot.com.tw/xrt?Lang=zh-TW | 現鈔賣出；若官網防護阻擋，改查下一家 |
+| 官方第 2 順位 / 國泰世華 | https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/ | 官網「現鈔匯率」的銀行賣出欄，不採即期或數位優惠 |
+| 官方第 3 順位 / 台新銀行 | https://my.taishinbank.com.tw/AccWeb/AW2/AW02020004.jsp | 官方友善網站「現鈔賣出」；前兩家沒有該幣別現鈔時才採用 |
 | 官方 / Grand SuperRich | https://www.grandsuperrich.com/rate.php | 嚴格依指定紙鈔面額的現鈔買入 |
 | 第三方參考 / 台銀轉載 | https://www.findrate.tw/bank/29/ | 僅使用**現鈔賣出**；核對頁面公布的更新時間，不是即期價 |
 | 第三方參考 / Grand SuperRich 轉載 | https://exchange.ruamthai.com/en/shop/grand-superrich | **只在下方參考區顯示** |
+
+**銀行備援規則（依幣別）：** 臺灣銀行 → 國泰世華 → 台新銀行。不同幣別可能採不同銀行，網站會標明實際選用來源和更新時間。**若三家銀行都沒有該幣別的現鈔賣出價（例如國泰及台新沒有 KRW 現鈔牌告），該幣別顯示不提供、不列入排名，也不會使用即期匯率。** 不會用國泰的即期賣出價冒充現鈔價。
 
 **重要：絕對不會把第三方鏡像升格為「官方牌告」。** 官方只要有一個來源無法直接取得、缺少價格或過期，「官方牌告」模式便不會顯示排名，而是標明「官方取得失敗」。若第三方兩家資料都完整、且更新時間未過期，網頁會自動切至**明確標示「第三方參考 · 非官方」**的比較模式，讓使用者仍能看到六種換匯金額及計算結果；可隨時切回官方資料檢查失敗狀態、或選擇手動輸入。
 
@@ -30,12 +34,12 @@ Grand SuperRich 指定紙鈔面額：
 ## 操作
 
 1. 打開網站：先看「官方網站牌告狀態」及主要排名下方的來源與掛牌日期。
-2. 若兩家官方網站均可直接取得，預設顯示**官方牌告**排名。
+2. 若任何一家列入備援順序的銀行官網可取得有效**現鈔賣出價**，並且 Grand SuperRich 官網現鈔買入價完整，就預設顯示**官方牌告**排名；未提供的幣別不列入。
 3. 若任一官網取得失敗，但兩家第三方轉載皆有效，預設顯示**第三方參考試算（非官方）**。使用「官方牌告」按鈕仍會看到官方失敗原因，第三方資料不會混入官方排名。
 4. 只有**手動啟用「手動輸入試算」**才能修改牌告；此模式明確標為非官方自動報價。
 5. 市場歷史匯率曲線仍可選 7 天、30 天、3 個月、6 個月、1 年；曲線不是 SuperRich 現鈔買入價歷史。
 
-**請勿誤判自動化工作成功：** GitHub Actions 執行成功只代表四個來源都已完成檢查、寫入結果，不代表官方擷取成功。必須查看 rates.json 的 \`official.bot.status\` 和 \`official.grand_superrich.status\` 是否同為 \`ok\`，網站才會顯示官方排名。
+**請勿誤判自動化工作成功：** GitHub Actions 執行成功只代表四個來源都已完成檢查、寫入結果，不代表官方擷取成功。必須確認 `rates.json` 的 `official.bank.status` 和 `official.grand_superrich.status` 是否同為 `ok`；`official.bank.currency_sources` 記錄每個幣別實際採用的銀行。臺銀 `status: failed` 並不代表國泰／台新也失敗。
 
 RuamThai 的頁面時間是第三方網站抓取時間的推估值，並不等於 Grand SuperRich 官方掛牌時間；頁面會清楚註明。程式不會用市場中間價補足現鈔匯率。
 
@@ -45,7 +49,8 @@ RuamThai 的頁面時間是第三方網站抓取時間的推估值，並不等�
 
 程式入口：\`scripts/update_rates.py\`。每次儲存的 schema v2 包含：
 - \`checked_at\`：完成檢查的 UTC 時間。
-- \`official.bot\` / \`official.grand_superrich\`：**只有官網直接讀取才會是 ok**。
+- `official.bot`、`official.cathay`、`official.taishin`、`official.grand_superrich`：各家官網的實際讀取狀態。
+- `official.bank`：按銀行優先順序所選的現鈔賣出價，`currency_sources` 提供銀行名稱和時間，`unsupported` 表示無任何官方銀行提供的幣別。
 - \`reference.bot\` / \`reference.grand_superrich\`：獨立鏡像參考資料。
 - 錯誤時的 \`status: failed\`、\`error\`，以及不作為目前價格的 \`last_successful\` 歷史存檔（若有）。
 
