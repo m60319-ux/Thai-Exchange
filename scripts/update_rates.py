@@ -20,7 +20,7 @@ from bs4 import BeautifulSoup
 BOT_URL = "https://rate.bot.com.tw/xrt?Lang=zh-TW"
 BOT_CSV_URL = "https://rate.bot.com.tw/xrt/flcsv/0/day"
 GRAND_URL = "https://www.grandsuperrich.com/rate.php"
-BOT_MIRROR_URL = "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json"
+BOT_MIRROR_URL = "https://www.findrate.tw/bank/29/"
 GRAND_MIRROR_URL = "https://exchange.ruamthai.com/en/shop/grand-superrich"
 OUT = Path(__file__).resolve().parents[1] / "rates.json"
 TW = ZoneInfo("Asia/Taipei")
@@ -224,17 +224,68 @@ def parse_grand_table(html):
 
 
 def bot_mirror(raw):
-    j = json.loads(raw)
-    if j.get("source") != "Taiwan Bank (臺灣銀行牌告匯率)":
-        raise ValueError("臺銀鏡像來源標籤不符合預期")
-    stamp = j.get("updateTime", "")
-    m = re.search(r"(\d{4})/(\d{1,2})/(\d{1,2})\D+(\d{1,2}):(\d{2}):(\d{2})", stamp)
-    if not m:
-        raise ValueError("臺銀鏡像缺少報價時間")
-    y, mo, d, h, minute, sec = map(int, m.groups())
-    quoted_at = datetime(y, mo, d, h, minute, sec, tzinfo=TW)
-    assert_fresh(quoted_at, "臺銀鏡像")
-    rates = {code: price(code, j["details"][code]["cash"]["sell"]) for code in BANK_CURRENCIES}
+    """Read FindRate's **Taiwan Bank** cash SELL quotes (not spot sell).
+
+    FindRate's /bank/29/ page includes a bank-wide quotation timestamp.
+    We never substitute retrieval time for the published quotation time.
+    """
+    soup = BeautifulSoup(raw, "html.parser")
+    content = soup.get_text(" ", strip=True)
+    if not re.search(r"臺灣銀行|台灣銀行", content):
+        raise ValueError("FindRate 頁面不屬於臺灣銀行")
+
+    stamp_match = re.search(
+        r"匯率更新時間\s*[:：]?\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})"
+        r"\s+(\d{1,2}):(\d{2})(?::(\d{2}))?",
+        content
+    )
+    if not stamp_match:
+        raise ValueError("FindRate 頁面缺少可驗證的「匯率更新時間」")
+    y, month, d, hour, minute, seconds = stamp_match.groups()
+    quoted_at = datetime(int(y), int(month), int(d), int(hour),
+                         int(minute), int(seconds or 0), tzinfo=TW)
+
+    rates = {}
+    matched_table = False
+    for table in soup.select("table"):
+        # Match the actual CASH SELL header, not SPOT SELL.
+        headings = [[re.sub(r"\s+", "", th.get_text(" ", strip=True))
+                     for th in row.find_all(["th", "td"], recursive=False)]
+                    for row in table.select("tr")[:4]]
+        cash_index = None
+        for heading in headings:
+            if "現鈔賣出" in heading and "幣別" in heading:
+                cash_index = heading.index("現鈔賣出")
+                break
+        if cash_index is None:
+            continue
+        matched_table = True
+        for tr in table.select("tr"):
+            cells = tr.find_all(["td", "th"], recursive=False)
+            if len(cells) <= cash_index:
+                continue
+            currency_cell = cells[0].get_text(" ", strip=True)
+            found = re.search(r"\b(USD|EUR|JPY|KRW|CNY)\b", currency_cell, re.I)
+            if not found:
+                continue
+            code = found.group(1).upper()
+            value = cells[cash_index].get_text(" ", strip=True).replace(",", "")
+            if not re.fullmatch(r"\d+(?:\.\d+)?", value):
+                raise ValueError(f"FindRate {code} 缺少有效的現鈔賣出價")
+            new_price = price(code, value)
+            if code in rates and rates[code] != new_price:
+                raise ValueError(f"FindRate {code} 出現不一致的現鈔賣出價")
+            rates[code] = new_price
+
+    if not matched_table:
+        raise ValueError("FindRate 找不到「幣別／現鈔賣出」牌告表")
+    if set(rates) != set(BANK_CURRENCIES):
+        raise ValueError("FindRate 現鈔賣出資料不完整：" +
+                         ",".join(sorted(set(BANK_CURRENCIES) - set(rates))))
+
+    # The timestamp on /bank/29/ may be old even if page downloads today.
+    # Preserve the original date in the failure message for user visibility.
+    assert_fresh(quoted_at, "FindRate 臺銀第三方牌告", hours=120)
     return quoted_at, rates
 
 
@@ -316,7 +367,7 @@ def official_grand():
 def reference_bot():
     date, rates = bot_mirror(request_text(BOT_MIRROR_URL))
     return ok_record(BOT_MIRROR_URL, date, "third_party_mirror",
-                     timestamp_type="underlying_bank_quote", cash_sell=rates)
+                     timestamp_type="findrate_bank_quotation", cash_sell=rates)
 
 
 def reference_grand():
@@ -386,6 +437,31 @@ def self_test():
     div_prices, _ = parse_grand_table(grand_div)
     assert div_prices["USD"] == 33.69 and div_prices["TWD"] == 1.03
     assert parse_grand_timestamp(grand_div).hour == 15
+    # FindRate /bank/29/: spot-sell is deliberately different from cash-sell.
+    findrate_html = """<html><h1>臺灣銀行牌告匯率表</h1>
+    <p>匯率更新時間 : 2026-10-29 09:08</p><table>
+    <tr><th>幣別</th><th>現鈔買入</th><th>現鈔賣出</th><th>即期買入</th><th>即期賣出</th></tr>
+    <tr><td>美金 USD</td><td>31.00</td><td>32.15</td><td>31.35</td><td>31.86</td></tr>
+    <tr><td>歐元 EUR</td><td>34.80</td><td>36.90</td><td>35.30</td><td>36.20</td></tr>
+    <tr><td>日幣 JPY</td><td>0.189</td><td>0.207</td><td>0.190</td><td>0.199</td></tr>
+    <tr><td>韓元 KRW</td><td>0.019</td><td>0.025</td><td>--</td><td>--</td></tr>
+    <tr><td>人民幣 CNY</td><td>4.61</td><td>4.88</td><td>4.70</td><td>4.78</td></tr>
+    </table></html>"""
+    # Isolate fixed fixture parsing from the wall clock.
+    original_freshness = globals()["assert_fresh"]
+    try:
+        globals()["assert_fresh"] = lambda dt, name, hours=120: None
+        findrate_date, findrate_rates = bot_mirror(findrate_html)
+    finally:
+        globals()["assert_fresh"] = original_freshness
+    assert findrate_date.isoformat() == "2026-10-29T09:08:00+08:00"
+    assert findrate_rates == {"USD": 32.15, "EUR": 36.9, "JPY": 0.207,
+                              "KRW": 0.025, "CNY": 4.88}
+    try:
+        bot_mirror(findrate_html.replace("2026-10-29", "2026-06-29"))
+        raise AssertionError("outdated FindRate quote should be rejected")
+    except ValueError as exc:
+        assert "過期" in str(exc) or "不合理" in str(exc)
     assert failure_record(BOT_URL, ValueError("blocked"))["status"] == "failed"
     print("Offline source-separation, currency, banknote and timestamp tests passed")
 
