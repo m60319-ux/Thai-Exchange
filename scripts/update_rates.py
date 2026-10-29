@@ -493,7 +493,8 @@ def main():
                                              "cash_buy", "denomination_labels")
                         if k in prior
                     }
-                elif rec["status"] == "failed" and prior.get("last_successful"):
+                elif (rec["status"] == "failed" and prior.get("last_successful")
+                      and prior["last_successful"].get("source") == rec.get("source")):
                     rec["last_successful"] = prior["last_successful"]
                 elif rec["status"] == "ok" and prior.get("status") == "ok":
                     # Do not let a lagging site overwrite newer quote value.
