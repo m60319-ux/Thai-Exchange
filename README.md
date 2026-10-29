@@ -1,65 +1,46 @@
 # Thai-Exchange｜泰銖換匯決策儀表板
 
-[打開換匯網頁](https://m60319-ux.github.io/Thai-Exchange/)
+[開啟換匯網站](https://m60319-ux.github.io/Thai-Exchange/)
 
-比較台幣直接換泰銖及先購買 USD、EUR、JPY、KRW、CNY 的路線。臺灣銀行現鈔賣出價無法讀取時，依序改採**國泰世華銀行**、**台新銀行**的官方現鈔賣出價；再到 Grand SuperRich 按指定面額的現鈔買入價換泰銖。每個幣別顯示實際銀行來源。
+**v2.3｜維持既有前端版型，移除臺灣銀行資料來源。**
 
-## 官方資料和第三方鏡像嚴格分離（v2）
+## 換匯路線與官方銀行順序
 
-網站由 GitHub Actions 定時檢查四個來源，結果分別存到 [rates.json](rates.json)。台銀官方優先為 `https://rate.bot.com.tw/xrt?Lang=zh-TW`，FindRate 只作為第三方參考：
+比較直接帶 TWD 現鈔到 Grand SuperRich 兌換泰銖，以及先在臺灣購買 USD、EUR、JPY、KRW、CNY 現鈔後，再到 Grand SuperRich 兌換泰銖。
 
-| 分組 | 來源 | 用途 |
-| --- | --- | --- |
-| 官方第 1 順位 / 臺灣銀行 | https://rate.bot.com.tw/xrt?Lang=zh-TW | 現鈔賣出；若官網防護阻擋，改查下一家 |
-| 官方第 2 順位 / 國泰世華 | https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/ | 官網「現鈔匯率」的銀行賣出欄，不採即期或數位優惠 |
-| 官方第 3 順位 / 台新銀行 | https://my.taishinbank.com.tw/AccWeb/AW2/AW02020004.jsp | 官方友善網站「現鈔賣出」；前兩家沒有該幣別現鈔時才採用 |
-| 官方 / Grand SuperRich | https://www.grandsuperrich.com/rate.php | 嚴格依指定紙鈔面額的現鈔買入 |
-| 第三方參考 / 台銀轉載 | https://www.findrate.tw/bank/29/ | 僅使用**現鈔賣出**；核對頁面公布的更新時間，不是即期價 |
-| 第三方參考 / Grand SuperRich 轉載 | https://exchange.ruamthai.com/en/shop/grand-superrich | **只在下方參考區顯示** |
+購買外幣時只採用以下**銀行官網現鈔賣出價**，**依幣別**選擇第一個可用且時間有效的報價：
 
-**銀行備援規則（依幣別）：** 臺灣銀行 → 國泰世華 → 台新銀行。不同幣別可能採不同銀行，網站會標明實際選用來源和更新時間。**若三家銀行都沒有該幣別的現鈔賣出價（例如國泰及台新沒有 KRW 現鈔牌告），該幣別顯示不提供、不列入排名，也不會使用即期匯率。** 不會用國泰的即期賣出價冒充現鈔價。
+1. **國泰世華銀行（優先）**：[官方外幣匯率](https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/) — 使用「現鈔匯率」的**銀行賣出**欄，不使用即期或數位通路優惠匯率。
+2. **台新銀行（備援）**：[官方現鈔賣出頁](https://my.taishinbank.com.tw/AccWeb/AW2/AW02020004.jsp) — 國泰未提供或無法取得特定幣別時才採用。
 
-**重要：絕對不會把第三方鏡像升格為「官方牌告」。** 官方只要有一個來源無法直接取得、缺少價格或過期，「官方牌告」模式便不會顯示排名，而是標明「官方取得失敗」。若第三方兩家資料都完整、且更新時間未過期，網頁會自動切至**明確標示「第三方參考 · 非官方」**的比較模式，讓使用者仍能看到六種換匯金額及計算結果；可隨時切回官方資料檢查失敗狀態、或選擇手動輸入。
+泰銖端使用 [Grand SuperRich 官網](https://www.grandsuperrich.com/rate.php) 對應面額的**現鈔買入價**。
 
-Grand SuperRich 指定紙鈔面額：
-- USD 100
-- EUR 500–100
-- JPY 10,000–5,000
-- KRW 一般大面額，**排除 1,000 韓元小鈔**
-- CNY 100
-- TWD 一般台幣現鈔
+每個幣別的來源銀行及掛牌時間都存於 `rates.json` 的 `official.bank.currency_sources`，並在網站上顯示。若兩家銀行均沒有特定幣別的現鈔賣出牌告（目前 KRW 常見此狀況），顯示**不提供**，不會使用即期匯率、其他銀行或估算值替代。
 
-如果頁面沒有這個確切級距，程式會標為失敗，**不會取其他級距的最高買入價冒充**。
+## 官方與參考資料區分
 
-## 操作
+- **官方試算**：銀行端使用國泰世華／台新官網現鈔賣出價，泰銖端使用 Grand SuperRich 官網現鈔買入價。
+- **參考試算**：銀行端仍使用國泰世華／台新**官方**現鈔賣出價，僅泰銖端改用 [RuamThai](https://exchange.ruamthai.com/en/shop/grand-superrich) 第三方轉載的 Grand SuperRich **參考買入價**。這不是完整官方報價。
+- **手動試算**：使用者自行修改匯率，不代表當日現鈔報價。
 
-1. 打開網站：先看「官方網站牌告狀態」及主要排名下方的來源與掛牌日期。
-2. 若任何一家列入備援順序的銀行官網可取得有效**現鈔賣出價**，並且 Grand SuperRich 官網現鈔買入價完整，就預設顯示**官方牌告**排名；未提供的幣別不列入。
-3. 若任一官網取得失敗，但兩家第三方轉載皆有效，預設顯示**第三方參考試算（非官方）**。使用「官方牌告」按鈕仍會看到官方失敗原因，第三方資料不會混入官方排名。
-4. 只有**手動啟用「手動輸入試算」**才能修改牌告；此模式明確標為非官方自動報價。
-5. 市場歷史匯率曲線仍可選 7 天、30 天、3 個月、6 個月、1 年；曲線不是 SuperRich 現鈔買入價歷史。
+畫面結構、金額切換、六種幣別設定、歷史市場匯率圖表、複製與 CSV 匯出均保留。未有現鈔報價的外幣不列入可得泰銖排名。
 
-**請勿誤判自動化工作成功：** GitHub Actions 執行成功只代表四個來源都已完成檢查、寫入結果，不代表官方擷取成功。必須確認 `rates.json` 的 `official.bank.status` 和 `official.grand_superrich.status` 是否同為 `ok`；`official.bank.currency_sources` 記錄每個幣別實際採用的銀行。臺銀 `status: failed` 並不代表國泰／台新也失敗。
+Grand SuperRich 選用紙鈔面額：USD 100、EUR 100–500、JPY 5,000–10,000、CNY 100、KRW 排除 1,000 元小鈔、TWD 一般台幣現鈔。若對應面額報價無法辨識，該資料來源會失敗，不會任意拿其他級距冒充。
 
-RuamThai 的頁面時間是第三方網站抓取時間的推估值，並不等於 Grand SuperRich 官方掛牌時間；頁面會清楚註明。程式不會用市場中間價補足現鈔匯率。
+## GitHub Actions 與發布
 
-## 更新排程
+工作流程：[Refresh Cathay-Taishin and Grand SuperRich cash rates](https://github.com/m60319-ux/Thai-Exchange/actions/workflows/update-rates.yml)。
 
-[GitHub Actions](https://github.com/m60319-ux/Thai-Exchange/actions/workflows/update-rates.yml) 採 GitHub UTC cron 排程，原則上每天泰國時間 08:17～20:17 每小時檢查（GitHub 可能延誤或略過部分排程）。也可以按 **Run workflow** 手動重新檢查。
+排程原則上每天泰國時間 08:17–20:17 每小時檢查（GitHub 排程可能延遲）。輸出 `rates.json`（schema v2）的主要欄位：
 
-程式入口：\`scripts/update_rates.py\`。每次儲存的 schema v2 包含：
-- \`checked_at\`：完成檢查的 UTC 時間。
-- `official.bot`、`official.cathay`、`official.taishin`、`official.grand_superrich`：各家官網的實際讀取狀態。
-- `official.bank`：按銀行優先順序所選的現鈔賣出價，`currency_sources` 提供銀行名稱和時間，`unsupported` 表示無任何官方銀行提供的幣別。
-- \`reference.bot\` / \`reference.grand_superrich\`：獨立鏡像參考資料。
-- 錯誤時的 \`status: failed\`、\`error\`，以及不作為目前價格的 \`last_successful\` 歷史存檔（若有）。
+- `official.cathay`、`official.taishin`：兩家銀行官網的擷取狀態及現鈔賣出價。
+- `official.bank`：按照優先順序合成的可用現鈔價，附每個幣別來源、時間及不支援幣別。
+- `official.grand_superrich`：指定面額的官方泰銖現鈔買入價。
+- `reference.bank`：同一組**官方**銀行現鈔賣出價（不額外從其他網站抓銀行匯率）。
+- `reference.grand_superrich`：RuamThai 第三方轉載的參考現鈔買入價。
 
-GitHub Pages 使用 \`main\` 分支根目錄的 \`index.html\`。使用前務必核對交易時間、店家面額與門市臨櫃價格。
+**執行成功不保證所有報價都成功取得**：請以各筆 `status`、`quoted_at` 和頁面上的來源提示為準。最後成交價格以分行及 Grand SuperRich 門市當日牌告為準。
 
-## 網頁可用性檢查
+每次變更會執行 Python 解析器離線測試、JavaScript 語法檢查、模擬瀏覽器的官方／參考／手動試算測試，並測試依幣別改用台新及不提供韓元時的畫面狀態。
 
-每次程式更新都透過 GitHub Actions 測試 JavaScript 語法，並以模擬瀏覽器分別測試「官方資料成功」、「官方失敗、第三方資料成功」及「全部取得失敗、手動輸入」三種情境，確認六種換匯路線、金額修改和歷史圖表能運作。這項測試不能保證外部網站永遠連線成功；官網封鎖及時效資訊仍會在頁面顯示。
-
-## FindRate 來源檢查
-
-FindRate 的 `/bank/29/` 頁面提供台銀現鈔賣出價及自身的「匯率更新時間」。如果該時間距執行時已超過 120 小時，程式會標示 **第三方資料過期／無法使用**，不會冒充今天的價格；也不會沿用舊的 HaoRate 報價作為 FindRate 的資料。
+本站由 GitHub Pages 的 `main` 分支根目錄 `index.html` 提供。
