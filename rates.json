@@ -1,18 +1,18 @@
 {
   "schema_version": 2,
-  "checked_at": "2026-10-29T01:33:04+00:00",
+  "checked_at": "2026-10-29T01:38:34+00:00",
   "official": {
     "cathay": {
       "status": "ok",
       "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
       "retrieval": "official_direct",
-      "quoted_at": "2026-10-29T09:32:59+08:00",
+      "quoted_at": "2026-10-29T09:38:29+08:00",
       "bank_name": "國泰世華銀行",
       "cash_sell": {
         "USD": 32.74,
         "EUR": 36.76,
         "JPY": 0.2097,
-        "CNY": 4.915
+        "CNY": 4.916
       },
       "unsupported": [
         "KRW"
@@ -22,13 +22,13 @@
       "status": "ok",
       "source": "https://my.taishinbank.com.tw/AccWeb/AW2/AW02020004.jsp",
       "retrieval": "official_direct",
-      "quoted_at": "2026-10-29T09:32:00+08:00",
+      "quoted_at": "2026-10-29T09:37:00+08:00",
       "bank_name": "台新銀行",
       "cash_sell": {
-        "CNY": 4.9102,
-        "EUR": 36.707,
+        "CNY": 4.9114,
+        "EUR": 36.711,
         "JPY": 0.2097,
-        "USD": 32.696
+        "USD": 32.703
       },
       "unsupported": [
         "KRW"
@@ -60,38 +60,38 @@
       "status": "ok",
       "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
       "retrieval": "official_cascade",
-      "quoted_at": "2026-10-29T09:32:59+08:00",
+      "quoted_at": "2026-10-29T09:38:29+08:00",
       "bank_name": "國泰世華 → 台新（依幣別回退）",
       "cash_sell": {
         "USD": 32.74,
         "EUR": 36.76,
         "JPY": 0.2097,
-        "CNY": 4.915
+        "CNY": 4.916
       },
       "currency_sources": {
         "USD": {
           "bank": "cathay",
           "bank_name": "國泰世華銀行",
           "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
-          "quoted_at": "2026-10-29T09:32:59+08:00"
+          "quoted_at": "2026-10-29T09:38:29+08:00"
         },
         "EUR": {
           "bank": "cathay",
           "bank_name": "國泰世華銀行",
           "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
-          "quoted_at": "2026-10-29T09:32:59+08:00"
+          "quoted_at": "2026-10-29T09:38:29+08:00"
         },
         "JPY": {
           "bank": "cathay",
           "bank_name": "國泰世華銀行",
           "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
-          "quoted_at": "2026-10-29T09:32:59+08:00"
+          "quoted_at": "2026-10-29T09:38:29+08:00"
         },
         "CNY": {
           "bank": "cathay",
           "bank_name": "國泰世華銀行",
           "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
-          "quoted_at": "2026-10-29T09:32:59+08:00"
+          "quoted_at": "2026-10-29T09:38:29+08:00"
         }
       },
       "unsupported": [
@@ -104,38 +104,38 @@
       "status": "ok",
       "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
       "retrieval": "official_cascade",
-      "quoted_at": "2026-10-29T09:32:59+08:00",
+      "quoted_at": "2026-10-29T09:38:29+08:00",
       "bank_name": "國泰世華 → 台新（依幣別回退）",
       "cash_sell": {
         "USD": 32.74,
         "EUR": 36.76,
         "JPY": 0.2097,
-        "CNY": 4.915
+        "CNY": 4.916
       },
       "currency_sources": {
         "USD": {
           "bank": "cathay",
           "bank_name": "國泰世華銀行",
           "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
-          "quoted_at": "2026-10-29T09:32:59+08:00"
+          "quoted_at": "2026-10-29T09:38:29+08:00"
         },
         "EUR": {
           "bank": "cathay",
           "bank_name": "國泰世華銀行",
           "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
-          "quoted_at": "2026-10-29T09:32:59+08:00"
+          "quoted_at": "2026-10-29T09:38:29+08:00"
         },
         "JPY": {
           "bank": "cathay",
           "bank_name": "國泰世華銀行",
           "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
-          "quoted_at": "2026-10-29T09:32:59+08:00"
+          "quoted_at": "2026-10-29T09:38:29+08:00"
         },
         "CNY": {
           "bank": "cathay",
           "bank_name": "國泰世華銀行",
           "source": "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/",
-          "quoted_at": "2026-10-29T09:32:59+08:00"
+          "quoted_at": "2026-10-29T09:38:29+08:00"
         }
       },
       "unsupported": [
@@ -146,7 +146,7 @@
       "status": "ok",
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
       "retrieval": "third_party_mirror",
-      "quoted_at": "2026-10-29T08:32:04.041746+07:00",
+      "quoted_at": "2026-10-29T08:37:34.340458+07:00",
       "timestamp_type": "mirror_fetch_age_estimate",
       "cash_buy": {
         "CNY": 5.05,
