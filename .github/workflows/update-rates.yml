@@ -10,6 +10,7 @@ on:
     paths:
       - ".github/workflows/update-rates.yml"
       - "scripts/update_rates.py"
+      - "scripts/diagnose_banks.py"
       - "index.html"
       - "tests/browser_smoke.cjs"
 
@@ -33,6 +34,8 @@ jobs:
           python-version: "3.12"
       - name: Install crawler dependencies
         run: python -m pip install --disable-pip-version-check requests==2.32.5 beautifulsoup4==4.14.2
+      - name: Diagnose backup official bank HTML sources
+        run: python scripts/diagnose_banks.py
       - name: Test quote parsing using offline fixtures
         run: python scripts/update_rates.py --self-test
       - name: Check inline JavaScript syntax and required source-status elements
