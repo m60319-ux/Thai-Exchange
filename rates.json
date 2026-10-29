@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "checked_at": "2026-10-29T01:15:03+00:00",
+  "checked_at": "2026-10-29T01:15:22+00:00",
   "official": {
     "bot": {
       "status": "failed",
@@ -34,24 +34,13 @@
     "bot": {
       "status": "failed",
       "source": "https://www.findrate.tw/bank/29/",
-      "error": "FindRate 臺銀第三方牌告 牌告時間不合理或已過期: 2026-06-29T17:00:00+08:00",
-      "last_successful": {
-        "quoted_at": "2026-10-28T20:39:59+08:00",
-        "source": "https://raw.githubusercontent.com/haotool/app/data/public/rates/latest.json",
-        "cash_sell": {
-          "USD": 32.69,
-          "EUR": 36.61,
-          "JPY": 0.209,
-          "KRW": 0.02632,
-          "CNY": 4.931
-        }
-      }
+      "error": "FindRate 臺銀第三方牌告 牌告時間不合理或已過期: 2026-06-29T17:00:00+08:00"
     },
     "grand_superrich": {
       "status": "ok",
       "source": "https://exchange.ruamthai.com/en/shop/grand-superrich",
       "retrieval": "third_party_mirror",
-      "quoted_at": "2026-10-29T08:14:03.608491+07:00",
+      "quoted_at": "2026-10-29T08:14:22.694946+07:00",
       "timestamp_type": "mirror_fetch_age_estimate",
       "cash_buy": {
         "CNY": 5.05,
