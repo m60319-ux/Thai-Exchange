@@ -4,8 +4,6 @@
 Never promote a mirrored quote to official. Missing official quotes are failures,
 not permission to silently substitute estimated or market rates.
 """
-import csv
-import io
 import json
 import os
 import re
@@ -17,12 +15,9 @@ from zoneinfo import ZoneInfo
 import requests
 from bs4 import BeautifulSoup
 
-BOT_URL = "https://rate.bot.com.tw/xrt?Lang=zh-TW"
-BOT_CSV_URL = "https://rate.bot.com.tw/xrt/flcsv/0/day"
 CATHAY_URL = "https://www.cathaybk.com.tw/cathaybk/personal/product/deposit/currency-billboard/"
 TAISHIN_URL = "https://my.taishinbank.com.tw/AccWeb/AW2/AW02020004.jsp"
 GRAND_URL = "https://www.grandsuperrich.com/rate.php"
-BOT_MIRROR_URL = "https://www.findrate.tw/bank/29/"
 GRAND_MIRROR_URL = "https://exchange.ruamthai.com/en/shop/grand-superrich"
 OUT = Path(__file__).resolve().parents[1] / "rates.json"
 TW = ZoneInfo("Asia/Taipei")
@@ -73,67 +68,6 @@ def assert_fresh(dt, label, hours=120):
     age = datetime.now(timezone.utc) - dt.astimezone(timezone.utc)
     if age < -timedelta(hours=2) or age > timedelta(hours=hours):
         raise ValueError(f"{label} 牌告時間不合理或已過期: {dt.isoformat()}")
-
-
-def parse_bot_timestamp(html):
-    text = BeautifulSoup(html, "html.parser").get_text(" ", strip=True)
-    m = re.search(
-        r"(?:牌價最新掛牌時間|Quoted\s+(?:Date|Time)|Latest\s+Quotation\s+Time)"
-        r"\s*[:：]?\s*(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})"
-        r"\s+(\d{1,2}):(\d{2})(?::(\d{2}))?", text, re.I
-    )
-    if not m:
-        raise ValueError("臺銀官方頁面缺少可驗證的牌告時間")
-    y, mon, d, h, minute, sec = m.groups()
-    return datetime(int(y), int(mon), int(d), int(h), int(minute),
-                    int(sec or 0), tzinfo=TW)
-
-
-def parse_bot_html(html):
-    soup = BeautifulSoup(html, "html.parser")
-    rates = {}
-    for tr in soup.select("tr"):
-        cells = tr.find_all("td", recursive=False)
-        if len(cells) < 3:
-            continue
-        content = tr.get_text(" ", strip=True)
-        match = re.search(r"\b(USD|EUR|JPY|KRW|CNY)\b", content)
-        if not match:
-            continue
-        ccy = match.group(1)
-        # Bank of Taiwan labels these cells as CASH RATE; ignore spot cells.
-        cash_cells = tr.select("td.rate-content-cash")
-        sell_cell = cash_cells[1] if len(cash_cells) >= 2 else None
-        if sell_cell is None:
-            for td in cells:
-                header = (td.get("data-table") or "").strip().lower()
-                cls = " ".join(td.get("class", [])).lower()
-                if ("本行賣出" in header or "cash selling" in header or
-                    ("cash" in cls and "sell" in cls)):
-                    sell_cell = td
-                    break
-        if sell_cell is None:
-            raise ValueError(f"臺銀 {ccy} 找不到現鈔賣出欄位")
-        m = re.search(r"(?<!\d)(\d+(?:\.\d+)?)(?!\d)", sell_cell.get_text(" ", strip=True))
-        if not m:
-            raise ValueError(f"臺銀 {ccy} 現鈔賣出欄位沒有價格")
-        rates[ccy] = price(ccy, m.group(1))
-    if set(rates) != set(BANK_CURRENCIES):
-        raise ValueError(f"臺銀官方現鈔賣出價不完整: {sorted(rates)}")
-    return rates
-
-
-def parse_bot_csv(body):
-    rates = {}
-    for row in csv.reader(io.StringIO(body.lstrip("\ufeff"))):
-        if len(row) <= 12:
-            continue
-        code = row[0].strip().upper()
-        if code in BANK_CURRENCIES:
-            rates[code] = price(code, row[12].strip())
-    if set(rates) != set(BANK_CURRENCIES):
-        raise ValueError(f"臺銀官方 CSV 現鈔賣出價不完整: {sorted(rates)}")
-    return rates
 
 
 def parse_grand_timestamp(html):
@@ -225,72 +159,6 @@ def parse_grand_table(html):
     return selections, labels
 
 
-def bot_mirror(raw):
-    """Read FindRate's **Taiwan Bank** cash SELL quotes (not spot sell).
-
-    FindRate's /bank/29/ page includes a bank-wide quotation timestamp.
-    We never substitute retrieval time for the published quotation time.
-    """
-    soup = BeautifulSoup(raw, "html.parser")
-    content = soup.get_text(" ", strip=True)
-    if not re.search(r"臺灣銀行|台灣銀行", content):
-        raise ValueError("FindRate 頁面不屬於臺灣銀行")
-
-    stamp_match = re.search(
-        r"匯率更新時間\s*[:：]?\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})"
-        r"\s+(\d{1,2}):(\d{2})(?::(\d{2}))?",
-        content
-    )
-    if not stamp_match:
-        raise ValueError("FindRate 頁面缺少可驗證的「匯率更新時間」")
-    y, month, d, hour, minute, seconds = stamp_match.groups()
-    quoted_at = datetime(int(y), int(month), int(d), int(hour),
-                         int(minute), int(seconds or 0), tzinfo=TW)
-
-    rates = {}
-    matched_table = False
-    for table in soup.select("table"):
-        # Match the actual CASH SELL header, not SPOT SELL.
-        headings = [[re.sub(r"\s+", "", th.get_text(" ", strip=True))
-                     for th in row.find_all(["th", "td"], recursive=False)]
-                    for row in table.select("tr")[:4]]
-        cash_index = None
-        for heading in headings:
-            if "現鈔賣出" in heading and "幣別" in heading:
-                cash_index = heading.index("現鈔賣出")
-                break
-        if cash_index is None:
-            continue
-        matched_table = True
-        for tr in table.select("tr"):
-            cells = tr.find_all(["td", "th"], recursive=False)
-            if len(cells) <= cash_index:
-                continue
-            currency_cell = cells[0].get_text(" ", strip=True)
-            found = re.search(r"\b(USD|EUR|JPY|KRW|CNY)\b", currency_cell, re.I)
-            if not found:
-                continue
-            code = found.group(1).upper()
-            value = cells[cash_index].get_text(" ", strip=True).replace(",", "")
-            if not re.fullmatch(r"\d+(?:\.\d+)?", value):
-                raise ValueError(f"FindRate {code} 缺少有效的現鈔賣出價")
-            new_price = price(code, value)
-            if code in rates and rates[code] != new_price:
-                raise ValueError(f"FindRate {code} 出現不一致的現鈔賣出價")
-            rates[code] = new_price
-
-    if not matched_table:
-        raise ValueError("FindRate 找不到「幣別／現鈔賣出」牌告表")
-    if set(rates) != set(BANK_CURRENCIES):
-        raise ValueError("FindRate 現鈔賣出資料不完整：" +
-                         ",".join(sorted(set(BANK_CURRENCIES) - set(rates))))
-
-    # The timestamp on /bank/29/ may be old even if page downloads today.
-    # Preserve the original date in the failure message for user visibility.
-    assert_fresh(quoted_at, "FindRate 臺銀第三方牌告", hours=120)
-    return quoted_at, rates
-
-
 def grand_mirror(raw):
     soup = BeautifulSoup(raw, "html.parser")
     text = soup.get_text(" ", strip=True)
@@ -325,18 +193,6 @@ def attempt(func, url, name):
     except Exception as ex:
         print(name, "FAILED:", str(ex)[:230], file=sys.stderr)
         return failure_record(url, ex)
-
-
-def official_bot():
-    html = request_text(BOT_URL)
-    date = parse_bot_timestamp(html)
-    try:
-        rates = parse_bot_html(html)
-    except ValueError:
-        rates = parse_bot_csv(request_text(BOT_CSV_URL))
-    assert_fresh(date, "臺銀官方")
-    return ok_record(BOT_URL, date, "official_direct", cash_sell=rates)
-
 
 
 def parse_cathay_cash_rates(html):
@@ -439,7 +295,7 @@ def choose_official_cash_bank(candidates):
 
     No invented cash quotes for unsupported currencies; no market/spot fallback.
     """
-    priority=[("bot","臺灣銀行"),("cathay","國泰世華銀行"),("taishin","台新銀行")]
+    priority=[("cathay","國泰世華銀行"),("taishin","台新銀行")]
     selected={}
     provenance={}
     for code in BANK_CURRENCIES:
@@ -454,12 +310,12 @@ def choose_official_cash_bank(candidates):
                 "source":rec["source"],"quoted_at":rec["quoted_at"]}
             break
     if not selected:
-        return failure_record(BOT_URL,
-            "臺灣銀行、國泰世華與台新銀行均無可用現鈔賣出牌告")
+        return failure_record(CATHAY_URL,
+            "國泰世華與台新銀行均無可用現鈔賣出牌告")
     timestamps=[datetime.fromisoformat(rec["quoted_at"]) for rec in provenance.values()]
     return ok_record(provenance[next(iter(selected))]["source"],min(timestamps),
                      "official_cascade",
-                     bank_name="台銀 → 國泰世華 → 台新（依幣別回退）",
+                     bank_name="國泰世華 → 台新（依幣別回退）",
                      cash_sell=selected,currency_sources=provenance,
                      unsupported=[code for code in BANK_CURRENCIES if code not in selected])
 
@@ -492,12 +348,6 @@ def official_grand():
     raise ValueError("；".join(errors))
 
 
-def reference_bot():
-    date, rates = bot_mirror(request_text(BOT_MIRROR_URL))
-    return ok_record(BOT_MIRROR_URL, date, "third_party_mirror",
-                     timestamp_type="findrate_bank_quotation", cash_sell=rates)
-
-
 def reference_grand():
     date, rates, labels = grand_mirror(request_text(GRAND_MIRROR_URL))
     return ok_record(GRAND_MIRROR_URL, date, "third_party_mirror",
@@ -506,16 +356,17 @@ def reference_grand():
 
 
 def collect():
-    # All four fetches are independent. No fallback is permitted within official.
+    # Two banks, official cash selling only, ordered Cathay then Taishin.
     official = {
-        "bot": attempt(official_bot, BOT_URL, "BOT_OFFICIAL"),
         "cathay": attempt(official_cathay, CATHAY_URL, "CATHAY_OFFICIAL"),
         "taishin": attempt(official_taishin, TAISHIN_URL, "TAISHIN_OFFICIAL"),
         "grand_superrich": attempt(official_grand, GRAND_URL, "GRAND_OFFICIAL"),
     }
     official["bank"] = choose_official_cash_bank(official)
+    # Reference uses official bank CASH SELL with a clearly disclosed
+    # third-party SuperRich quote; never reuses removed Taiwan Bank data.
     reference = {
-        "bot": attempt(reference_bot, BOT_MIRROR_URL, "BOT_REFERENCE"),
+        "bank": official["bank"].copy(),
         "grand_superrich": attempt(reference_grand, GRAND_MIRROR_URL, "GRAND_REFERENCE"),
     }
     return {"schema_version": 2,
@@ -544,13 +395,6 @@ def self_test():
     rates, denoms = parse_grand_table(table)
     assert rates["USD"] == 33.67 and rates["KRW"] == 0.0254
     assert denoms["JPY"] == "JPY 10000-5000"
-    bot_html = """<span>牌價最新掛牌時間：2026/10/27 16:22</span><table>""" + "".join(
-        f'<tr><td>{code}</td><td class="rate-content-cash">1</td>'
-        f'<td class="rate-content-cash">{val}</td></tr>'
-        for code,val in (("USD",32.8),("EUR",36.9),("JPY",.2099),("KRW",.0268),("CNY",4.94))
-    ) + "</table>"
-    assert parse_bot_timestamp(bot_html).hour == 16
-    assert parse_bot_html(bot_html)["USD"] == 32.8
     grand_div = """<div>Last Update 15:44:40 27/Oct/2026</div>
     <div class="gsr-rate-row"><div class="gsr-rate-currency-box">
     <div class="gsr-rate-currency">USD 100</div></div>
@@ -568,31 +412,6 @@ def self_test():
     div_prices, _ = parse_grand_table(grand_div)
     assert div_prices["USD"] == 33.69 and div_prices["TWD"] == 1.03
     assert parse_grand_timestamp(grand_div).hour == 15
-    # FindRate /bank/29/: spot-sell is deliberately different from cash-sell.
-    findrate_html = """<html><h1>臺灣銀行牌告匯率表</h1>
-    <p>匯率更新時間 : 2026-10-29 09:08</p><table>
-    <tr><th>幣別</th><th>現鈔買入</th><th>現鈔賣出</th><th>即期買入</th><th>即期賣出</th></tr>
-    <tr><td>美金 USD</td><td>31.00</td><td>32.15</td><td>31.35</td><td>31.86</td></tr>
-    <tr><td>歐元 EUR</td><td>34.80</td><td>36.90</td><td>35.30</td><td>36.20</td></tr>
-    <tr><td>日幣 JPY</td><td>0.189</td><td>0.207</td><td>0.190</td><td>0.199</td></tr>
-    <tr><td>韓元 KRW</td><td>0.019</td><td>0.025</td><td>--</td><td>--</td></tr>
-    <tr><td>人民幣 CNY</td><td>4.61</td><td>4.88</td><td>4.70</td><td>4.78</td></tr>
-    </table></html>"""
-    # Isolate fixed fixture parsing from the wall clock.
-    original_freshness = globals()["assert_fresh"]
-    try:
-        globals()["assert_fresh"] = lambda dt, name, hours=120: None
-        findrate_date, findrate_rates = bot_mirror(findrate_html)
-    finally:
-        globals()["assert_fresh"] = original_freshness
-    assert findrate_date.isoformat() == "2026-10-29T09:08:00+08:00"
-    assert findrate_rates == {"USD": 32.15, "EUR": 36.9, "JPY": 0.207,
-                              "KRW": 0.025, "CNY": 4.88}
-    try:
-        bot_mirror(findrate_html.replace("2026-10-29", "2026-06-29"))
-        raise AssertionError("outdated FindRate quote should be rejected")
-    except ValueError as exc:
-        assert "過期" in str(exc) or "不合理" in str(exc)
     cathay_fixture = """<p>資料時間 Board time： 2026年10月29日 09:18:27</p>
         <div>美元USD 歷史走勢 項目 Item 銀行買進 Bank buy 銀行賣出 Bank sell
         即期匯率 32.4100 32.5100 數位通路優惠匯率 32.4400 32.4800 現鈔匯率 32.1300 32.7300</div>
@@ -616,7 +435,6 @@ def self_test():
     finally:
         globals()["assert_fresh"]=old
     fake={
-      "bot":failure_record(BOT_URL,"blocked"),
       "cathay":ok_record(CATHAY_URL,ctime,"official_direct",
                  cash_sell={"USD":32.73,"EUR":36.72,"JPY":.2102,"CNY":4.92}),
       "taishin":ok_record(TAISHIN_URL,ttime,"official_direct",
@@ -626,12 +444,15 @@ def self_test():
     assert fallback["cash_sell"]["USD"]==32.73
     assert fallback["currency_sources"]["USD"]["bank"]=="cathay"
     assert fallback["unsupported"]==["KRW"]
+    fake["cathay"]["cash_sell"].pop("CNY")
+    fallback=choose_official_cash_bank(fake)
+    assert fallback["currency_sources"]["USD"]["bank"]=="cathay"
+    assert fallback["currency_sources"]["CNY"]["bank"]=="taishin"
     fake["cathay"]=failure_record(CATHAY_URL,"blocked")
     fallback=choose_official_cash_bank(fake)
     assert fallback["currency_sources"]["USD"]["bank"]=="taishin"
     assert fallback["unsupported"]==["KRW"]
-    assert failure_record(BOT_URL, ValueError("blocked"))["status"] == "failed"
-    print("Offline source-separation, currency, banknote and timestamp tests passed")
+    print("Offline Cathay-Taishin cash fallback and banknote tests passed")
 
 
 def main():
@@ -648,12 +469,12 @@ def main():
     # explicit *historical*, never as today's status or current main calculation.
     if previous and previous.get("schema_version") == 2:
         for group in ("official", "reference"):
-            names = ("bot", "cathay", "taishin", "grand_superrich") if group == "official" else ("bot", "grand_superrich")
+            names = ("cathay", "taishin", "grand_superrich") if group == "official" else ("grand_superrich",)
             for provider in names:
                 prior = previous.get(group, {}).get(provider, {})
                 rec = payload[group][provider]
                 # A historical record from another website must never survive
-                # when the user changes the provider (HaoRate -> FindRate).
+                # when the user changes one official provider to another.
                 if prior.get("source") != rec.get("source"):
                     prior = {}
                 if rec["status"] == "failed" and prior.get("status") == "ok":
